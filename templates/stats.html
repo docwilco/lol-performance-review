@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+    <head></head>
+    <body>
+    </html>
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Stats for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}</title>
+            <link rel="stylesheet" type="text/css" href="css/stats.css">
+            <style>
+                /* Style the tab */
+                .tab {
+                        overflow: hidden;
+                        border: 1px solid #ccc;
+                        background-color: #f1f1f1;
+                }
+
+                /* Style the buttons inside the tab */
+                .tab button {
+                        background-color: inherit;
+                        float: left;
+                        border: none;
+                        outline: none;
+                        cursor: pointer;
+                        padding: 14px 16px;
+                        transition: 0.3s;
+                }
+
+                /* Change background color of buttons on hover */
+                .tab button:hover {
+                        background-color: #ddd;
+                }
+
+                /* Create an active/current tablink class */
+                .tab button.active {
+                        background-color: #ccc;
+                }
+
+                /* Style the tab content */
+                .tabcontent {
+                        display: none;
+                        padding: 6px 12px;
+                        border: 1px solid #ccc;
+                        border-top: none;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Stats for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}</h1>
+            <div class="tab">
+                {% for week in weeks %}
+                    <button class="tablinks" onclick="openTab(event, 'Week{{ week.number }}')">Week {{ week.number }}</button>
+                {% endfor %}
+            </div>
+            {% for week in weeks %}
+            <div id="Week{{ week.number }}" class="tabcontent">
+                <h3>Week {{ week.number }}</h3>
+                <table>
+                    <tr>
+                        <td>Wins:</td>
+                        <td>{{ week.wins }}</td>
+                    </tr>
+                    <tr>
+                        <td>Losses:</td>
+                        <td>{{ week.losses }}</td>
+                    </tr>
+                    <tr>
+                        <td>Games played:</td>
+                        <td>{{ week.games_played }}</td>
+                    </tr>
+                    <tr>
+                        <td>Win rate:</td>
+                        <td>{{ "{:.1}"|format(week.win_rate) }}%</td>
+                    </tr>
+                    <tr>
+                        <td>CS/min</td>
+                        <td>{{ "{:.1}"|format(week.cs_per_minute_average) }}/{{ "{:.1}"|format(week.cs_per_minute_median) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Gold share:</td>
+                        <td>{{ "{:.1}"|format(week.gold_share_average) }}%/{{ "{:.1}"|format(week.gold_share_median) }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Champion Damage Share</td>
+                        <td>{{ "{:.1}"|format(week.champion_damage_share_average) }}%/{{ "{:.1}"|format(week.champion_damage_share_median) }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Objective Damage Share</td>
+                        <td>{{ "{:.1}"|format(week.objective_damage_share_average) }}%/{{ "{:.1}"|format(week.objective_damage_share_median) }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Vision Share</td>
+                        <td>{{ "{:.1}"|format(week.vision_share_average) }}%/{{ "{:.1}"|format(week.vision_share_median) }}%</td>
+                    </tr>
+                    <tr>
+                        <td>Solo Kills</td>
+                        <td>{{ "{:.1}"|format(week.solo_kills_average) }}/{{ "{:.1}"|format(week.solo_kills_median) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Solo Deaths</td>
+                        <td>{{ "{:.1}"|format(week.solo_deaths_average) }}/{{ "{:.1}"|format(week.solo_deaths_median) }}</td>
+                    </tr>
+                </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Minute</th>
+                            <th>CS/min</th>
+                            <th>Gold diff</th>
+                            <th>CS diff</th>
+                            <th>XP diff</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                            <tr>
+                                <td>{{ minute }}</td>
+                                <td>{{ "{:.1}"|format(minute_stats.cs_per_minute_average) }}/{{ "{:.1}"|format(minute_stats.cs_per_minute_median) }}</td>
+                                <td>{{ "{:.1}"|format(minute_stats.gold_diff_average) }}/{{ "{:.1}"|format(minute_stats.gold_diff_median) }}</td>
+                                <td>{{ "{:.1}"|format(minute_stats.cs_diff_average) }}/{{ "{:.1}"|format(minute_stats.cs_diff_median) }}</td>
+                                <td>{{ "{:.1}"|format(minute_stats.xp_diff_average) }}/{{ "{:.1}"|format(minute_stats.xp_diff_median) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+            <script>
+function openTab(evt, tabName) {
+    var i, tabcontent, tablinks;
+    tabcontent = document.getElementsByClassName("tabcontent");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    tablinks = document.getElementsByClassName("tablinks");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+// Wait for the document to load before showing Tab 1
+document.addEventListener("DOMContentLoaded", function() {
+    // Simulate a click on Tab1
+    openTab(new Event('click'), 'Week1');
+});
+            </script>
+        </body>
+    </html>

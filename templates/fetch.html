@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress Bar with Server-Sent Events</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #progress-container {
+            width: 80%;
+            background-color: #ddd;
+            border-radius: 25px;
+        }
+        #progress-bar {
+            width: 0;
+            height: 30px;
+            background-color: #4caf50;
+            border-radius: 25px;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-container">
+    <div id="progress-bar">0%</div>
+</div>
+
+<script>
+    if (typeof(EventSource) !== "undefined") {
+        const source = new EventSource("/fetch/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/events");
+        source.onmessage = function(event) {
+            let data = JSON.parse(event.data);
+            if (data === 'Done') {
+                source.close();
+                window.location.replace('/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}');
+                return;
+            }
+            if (data === 'Error') {
+                alert('An error occurred while fetching data.');
+                source.close();
+                return;
+            }
+            if (data.Fetching) {
+                console.log('data.Fetching.percent_done', data.Fetching.percent_done);
+                const progress = data.Fetching.percent_done;
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+            }
+        };
+    } else {
+        alert("Your browser does not support Server-Sent Events.");
+    }
+</script>
+
+</body>
+</html>
