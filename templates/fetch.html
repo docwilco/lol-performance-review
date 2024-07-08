@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Progress Bar with Server-Sent Events</title>
-    <style>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Progress Bar with Server-Sent Events</title>
+        <style>
         body {
             display: flex;
             justify-content: center;
@@ -26,43 +26,65 @@
             border-radius: 25px;
             text-align: center;
             line-height: 30px;
-            color: white;
+            color: black;
         }
-    </style>
-</head>
-<body>
-
-<div id="progress-container">
-    <div id="progress-bar">0%</div>
-</div>
-
-<script>
+        </style>
+    </head>
+    <body>
+        <div>
+            <div id="progress-container">
+                <div id="progress-bar">0%</div>
+            </div>
+        </div>
+        <br>
+        <div id="progress-text"></div>
+        <script>
+    var last_status = '';
+    var total_seconds_left = 0;
     if (typeof(EventSource) !== "undefined") {
         const source = new EventSource("/fetch/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/events");
         source.onmessage = function(event) {
             let data = JSON.parse(event.data);
+            const progressText = document.getElementById('progress-text');
             if (data === 'Done') {
+                last_status = 'Done';
                 source.close();
+                progressText.textContent = "Done!";
                 window.location.replace('/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}');
                 return;
             }
-            if (data === 'Error') {
-                alert('An error occurred while fetching data.');
+            if (data.Error) {
+                last_status = 'Error';
+                progressText.textContent = 'An error occurred while fetching data:' + data.Error;
                 source.close();
                 return;
             }
             if (data.Fetching) {
+                last_status = 'Fetching';
                 console.log('data.Fetching.percent_done', data.Fetching.percent_done);
                 const progress = data.Fetching.percent_done;
                 const progressBar = document.getElementById('progress-bar');
                 progressBar.style.width = progress + '%';
                 progressBar.textContent = progress + '%';
+                progressText.textContent = 'Fetching data...';
+            }
+            if (data.Waiting) {
+                const progressBar = document.getElementById('progress-bar');
+                const seconds_left = data.Waiting.seconds_left;
+                progressText.textContent = 'Throttled by Riot API, having to wait ' + seconds_left + ' seconds.';
+                if (last_status !== 'Waiting') {
+                    total_seconds_left = seconds_left;
+                }
+                last_status = 'Waiting';
+                console.log('total_seconds_left', total_seconds_left, 'seconds_left', seconds_left);
+                percent_done = 100 * seconds_left / total_seconds_left;
+                console.log('percent_done', percent_done);
+                progressBar.style.width = percent_done + '%';
             }
         };
     } else {
         alert("Your browser does not support Server-Sent Events.");
     }
-</script>
-
-</body>
+        </script>
+    </body>
 </html>

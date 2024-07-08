@@ -8,7 +8,7 @@ use serde::Deserialize;
 use std::{
     collections::HashMap,
     env,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Display, Formatter}, sync::Arc,
 };
 
 mod fetcher;
@@ -107,11 +107,12 @@ impl Player {
     }
 }
 
+type FetchStatusPerPlayer = Arc<DashMap<Player, StatusBroadcaster>>;
 struct InnerState {
     client: ratelimiter::ApiClient,
     matches_per_puuid: DashMap<String, HashMap<String, json::Match>>,
     timeline_per_match: DashMap<String, json::Timeline>,
-    fetch_status_per_player: DashMap<Player, StatusBroadcaster>,
+    fetch_status_per_player: FetchStatusPerPlayer,
 }
 
 type State = web::Data<InnerState>;
@@ -131,12 +132,13 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     let api_key = env::var("RIOT_API_KEY")?;
-    let client = ratelimiter::ApiClient::new(&api_key)?;
+    let fetch_status_per_player = Arc::new(DashMap::new());
+    let client = ratelimiter::ApiClient::new(&api_key, fetch_status_per_player.clone())?;
     let state = InnerState {
         client,
         matches_per_puuid: DashMap::new(),
         timeline_per_match: DashMap::new(),
-        fetch_status_per_player: DashMap::new(),
+        fetch_status_per_player,
     };
     let data = web::Data::new(state);
     let state = data.clone();

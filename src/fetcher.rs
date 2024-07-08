@@ -15,6 +15,7 @@ use crate::{riot_api::update_match_history, Player, Result, State};
 pub enum FetchStatus {
     Starting,
     Fetching { percent_done: u8 },
+    Waiting { seconds_left: u64 },
     Done,
     Error(String),
 }
@@ -32,6 +33,7 @@ impl From<&FetchStatus> for sse::Event {
     }
 }
 
+#[derive(Debug)]
 pub struct StatusBroadcaster {
     last_status: FetchStatus,
     clients: Vec<mpsc::Sender<sse::Event>>,

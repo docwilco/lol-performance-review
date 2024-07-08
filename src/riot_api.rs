@@ -21,6 +21,7 @@ pub async fn get_puuid_raw(state: &State, player: &Player) -> Result<Value> {
             region,
             "/riot/account/v1/accounts/by-riot-id",
             [player.game_name.as_str(), &player.tag_line.as_str()],
+            player,
         )
         .await?)
 }
@@ -48,10 +49,10 @@ pub async fn get_puuid_and_canonical_name(state: &State, player: &mut Player) ->
     convert = r#"{ format!("{region}#{match_id}") }"#,
     map_error = r##"|e| e"##
 )]
-pub async fn get_match(state: &State, region: ApiRegion, match_id: &str) -> Result<json::Match> {
+pub async fn get_match(state: &State, region: ApiRegion, match_id: &str, player: &Player) -> Result<json::Match> {
     state
         .client
-        .get::<json::Match>(region, "/lol/match/v5/matches", [match_id])
+        .get::<json::Match>(region, "/lol/match/v5/matches", [match_id], player)
         .await
 }
 
@@ -66,10 +67,11 @@ pub async fn get_match_timeline(
     state: &State,
     region: ApiRegion,
     match_id: &str,
+    player: &Player,
 ) -> Result<json::Timeline> {
     state
         .client
-        .get::<json::Timeline>(region, "/lol/match/v5/matches", [match_id, "timeline"])
+        .get::<json::Timeline>(region, "/lol/match/v5/matches", [match_id, "timeline"], player)
         .await
 }
 
@@ -78,6 +80,7 @@ pub async fn get_match_history(
     region: ApiRegion,
     puuid: &str,
     end: Option<DateTime<Utc>>,
+    player: &Player,
 ) -> Result<Vec<String>> {
     let mut query_params = vec![("count", "40"), ("queue", "420")];
     let end_string = end.map(|end| format!("{}", end.timestamp()));
@@ -91,6 +94,7 @@ pub async fn get_match_history(
             "/lol/match/v5/matches/by-puuid",
             [puuid, "ids"],
             query_params,
+            player,
         )
         .await
 }
@@ -106,10 +110,10 @@ pub async fn update_match_history(
     let mut match_ids = vec![];
     let mut earliest_match = None;
     while earliest_match.map_or(true, |earliest| earliest > start) {
-        match_ids.extend(get_match_history(&state, region, &puuid, earliest_match).await?);
+        match_ids.extend(get_match_history(&state, region, &puuid, earliest_match, player).await?);
         earliest_match = match match_ids.last() {
             Some(match_id) => {
-                let match_info = get_match(&state, region, match_id).await?;
+                let match_info = get_match(&state, region, match_id, player).await?;
                 Some(match_info.info.game_start_timestamp)
             }
             None => return Err("No matches found".into()),
@@ -121,13 +125,13 @@ pub async fn update_match_history(
         if !matches.contains_key(match_id) {
             matches.insert(
                 match_id.to_string(),
-                get_match(&state, region, match_id).await?,
+                get_match(&state, region, match_id, player).await?,
             );
         }
         if !state.timeline_per_match.contains_key(match_id) {
             state.timeline_per_match.insert(
                 match_id.to_string(),
-                get_match_timeline(&state, region, match_id).await?,
+                get_match_timeline(&state, region, match_id, player).await?,
             );
         }
         if let Some(mut broadcaster) = state.fetch_status_per_player.get_mut(&player) {

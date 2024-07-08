@@ -1,4 +1,4 @@
-use crate::{ApiRegion, Result};
+use crate::{ApiRegion, FetchStatusPerPlayer, Player, Result};
 use dashmap::{DashMap, Entry};
 use governor::{DefaultDirectRateLimiter, Quota};
 use log::{debug, trace};
@@ -9,7 +9,7 @@ use reqwest::{
 };
 use serde::Deserialize;
 use std::{fmt, fs, num::NonZeroU32, sync::Arc, time::Duration};
-use tokio::time::sleep;
+use tokio::time::{interval, sleep};
 
 //#[derive(Deserialize)]
 //struct Status {
@@ -23,10 +23,11 @@ pub struct ApiClient {
     http_client: reqwest::Client,
     app_limits: [Arc<DefaultDirectRateLimiter>; 2],
     method_limits: Arc<DashMap<String, Arc<DefaultDirectRateLimiter>>>,
+    fetch_status_per_player: FetchStatusPerPlayer,
 }
 
 impl ApiClient {
-    pub fn new(api_key: &str) -> Result<Self> {
+    pub fn new(api_key: &str, fetch_status_per_player: FetchStatusPerPlayer) -> Result<Self> {
         // We always put in the same API token
         let mut headers = HeaderMap::new();
         let mut api_key_value = HeaderValue::from_str(api_key)?;
@@ -45,6 +46,7 @@ impl ApiClient {
             http_client: client,
             app_limits,
             method_limits,
+            fetch_status_per_player,
         })
     }
 
@@ -53,11 +55,12 @@ impl ApiClient {
         region: ApiRegion,
         method: &str,
         path_params: impl IntoIterator<Item = &str> + fmt::Debug,
+        player: &Player,
     ) -> Result<T>
     where
         T: for<'a> Deserialize<'a>,
     {
-        self.get_with_query(region, method, path_params, vec![])
+        self.get_with_query(region, method, path_params, vec![], player)
             .await
     }
 
@@ -67,6 +70,7 @@ impl ApiClient {
         method: &str,
         path_params: impl IntoIterator<Item = &str> + fmt::Debug,
         query_params: impl IntoIterator<Item = (&str, &str)> + fmt::Debug,
+        player: &Player,
     ) -> Result<T>
     where
         T: for<'a> Deserialize<'a>,
@@ -126,8 +130,17 @@ impl ApiClient {
         }
 
         while let Some(retry_after) = response.headers().get("retry-after") {
-            let retry_after = retry_after.to_str()?.parse::<u64>()?;
+            let mut retry_after = retry_after.to_str()?.parse::<u64>()?;
             debug!("Rate limited, retrying in {} seconds", retry_after);
+            let mut interval = interval(Duration::from_secs(1));
+            while retry_after > 0 {
+                let broadcaster = self.fetch_status_per_player.get_mut(&player);
+                if let Some(mut broadcaster) = broadcaster {
+                    broadcaster.broadcast(crate::fetcher::FetchStatus::Waiting { seconds_left: retry_after }).await;
+                }
+                interval.tick().await;
+                retry_after -= 1;
+            }
             sleep(Duration::from_secs(retry_after)).await;
             response = self.http_client.get(url.clone()).send().await?;
         }
