@@ -21,6 +21,7 @@ use riot_api::json;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T> = std::result::Result<T, Error>;
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Hash, strum::Display, strum::EnumIter)]
 enum LeagueRegion {
     BR,
@@ -42,6 +43,7 @@ enum LeagueRegion {
     VN2,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Debug, strum::Display)]
 enum ApiRegion {
     Americas,
@@ -51,7 +53,7 @@ enum ApiRegion {
 }
 
 impl ApiRegion {
-    fn hostname(&self) -> &'static str {
+    fn hostname(self) -> &'static str {
         match self {
             ApiRegion::Americas => "americas.api.riotgames.com",
             ApiRegion::Asia => "asia.api.riotgames.com",

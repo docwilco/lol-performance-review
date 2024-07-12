@@ -1,61 +1,228 @@
+{% macro float_one_decimal(number) %}
+    {{ "{:.1}"|format(number) }}
+{% endmacro %}
+
+{% macro float_diff(number) %}
+    {% match number.has_visible_diff(10.0) %}
+        {% when Ordering::Less %}
+            {% if let Some(delta) = number.delta %}
+<span class="negative">{{ "{:+.1}"|format(delta) }}</span>
+{% else %}
+FUCKING HELL
+            {% endif %}
+        {% when Ordering::Greater %}
+            {% if let Some(delta) = number.delta %}
+<span class="positive">{{ "{:+.1}"|format(delta) }}</span>
+{% else %}
+FUCKING HELL
+            {% endif %}
+        {% when Ordering::Equal %}
+    {% endmatch %}
+{% endmacro %}
+
+{% macro float_with_diff(number) %}
+{{ "{:.1}"|format(number) }}{% call float_diff(number) %}
+{% endmacro %}
+{% macro percent_float_with_diff(number) %}
+{{ "{:.1}"|format(number) }}%{% call float_diff(number) %}
+{% endmacro %}
 <!DOCTYPE html>
 <html>
-    <head></head>
+    <head>
+        <title>Stats for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}</title>
+        <link rel="stylesheet" type="text/css" href="css/stats.css">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f5f5f5;
+                margin: 0;
+                padding: 0;
+            }
+
+            h1 {
+                text-align: center;
+                margin: 20px 0;
+                color: #333;
+            }
+
+            .tab {
+                overflow: hidden;
+                border: 1px solid #ccc;
+                background-color: #f1f1f1;
+                margin: 20px auto;
+                width: 80%;
+            }
+
+            .tab button {
+                background-color: inherit;
+                float: left;
+                border: none;
+                outline: none;
+                cursor: pointer;
+                padding: 14px 16px;
+                transition: 0.3s;
+            }
+
+            .tab button:hover {
+                background-color: #ddd;
+            }
+
+            .tab button.active {
+                background-color: #ccc;
+            }
+
+            .tabcontent {
+                display: none;
+                padding: 6px 12px;
+                border: 1px solid #ccc;
+                border-top: none;
+                padding: 20px;
+                margin: 0 auto;
+                width: 80%;
+                background-color: white;                
+            }
+
+            .positive {
+                color: darkgreen;
+                font-size: 75%;
+            }
+            .negative {
+                color: darkred;
+                font-size: 75%;
+            }
+
+            .stats-tables {
+                display: flex;
+                justify-content: space-between;
+            }
+            .stats-tables table {
+                width: 48%;
+                border-collapse: collapse;
+            }
+            .stats-tables td, .stats-tables th {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+
+            .stats-tables th {
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }
+
+            .heatmap-container {
+                margin-top: 20px;
+                width: 100%;
+                display: flex;
+            }
+
+            .heatmap-controller {
+                margin-top: 10px;
+                width: 48%;
+                padding: 20px;
+            }
+
+            .heatmap {
+                width: 512px;
+                height: 512px;
+                background-size: 512px;
+                background-image: url(/static/SR_minimap.png);
+                color: white;
+            }
+            .heatmap > p {
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                margin: 0px;
+            }
+
+            input[type="range"] {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                width: 100%;
+                outline: none;
+                position: absolute;
+                margin: auto;
+                top: 0;
+                bottom: 0;
+                background-color: transparent;
+                pointer-events: none;
+            }
+            .slider-track {
+                width: 100%;
+                height: 5px;
+                position: absolute;
+                margin: auto;
+                top: 0;
+                bottom: 0;
+                border-radius: 5px;
+            }
+            .slider-container {
+                position: relative;
+                width: 100%;
+                height: 100px;
+                margin-top: 30px;
+            }
+            input[type="range"]::-webkit-slider-runnable-track {
+                -webkit-appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-moz-range-track {
+                -moz-appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-ms-track {
+                appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                background-color: #3264fe;
+                cursor: pointer;
+                margin-top: -9px;
+                pointer-events: auto;
+                border-radius: 50%;
+            }
+            input[type="range"]::-moz-range-thumb {
+                -webkit-appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                cursor: pointer;
+                border-radius: 50%;
+                background-color: #3264fe;
+                pointer-events: auto;
+                border: none;
+            }
+            input[type="range"]::-ms-thumb {
+                appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                cursor: pointer;
+                border-radius: 50%;
+                background-color: #3264fe;
+                pointer-events: auto;
+            }
+            input[type="range"]:active::-webkit-slider-thumb {
+                background-color: #ffffff;
+                border: 1px solid #3264fe;
+            }
+        </style>
+        <script src="/static/heatmap.min.js"></script>
+    </head>
     <body>
-    </html>
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>Stats for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}</title>
-            <link rel="stylesheet" type="text/css" href="css/stats.css">
-            <style>
-                /* Style the tab */
-                .tab {
-                        overflow: hidden;
-                        border: 1px solid #ccc;
-                        background-color: #f1f1f1;
-                }
-
-                /* Style the buttons inside the tab */
-                .tab button {
-                        background-color: inherit;
-                        float: left;
-                        border: none;
-                        outline: none;
-                        cursor: pointer;
-                        padding: 14px 16px;
-                        transition: 0.3s;
-                }
-
-                /* Change background color of buttons on hover */
-                .tab button:hover {
-                        background-color: #ddd;
-                }
-
-                /* Create an active/current tablink class */
-                .tab button.active {
-                        background-color: #ccc;
-                }
-
-                /* Style the tab content */
-                .tabcontent {
-                        display: none;
-                        padding: 6px 12px;
-                        border: 1px solid #ccc;
-                        border-top: none;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Stats for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}</h1>
-            <div class="tab">
-                {% for week in weeks %}
-                    <button class="tablinks" onclick="openTab(event, 'Week{{ week.number }}')">Week {{ week.number }}</button>
-                {% endfor %}
-            </div>
+        <h1>Stats for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}</h1>
+        <div class="tab">
             {% for week in weeks %}
-            <div id="Week{{ week.number }}" class="tabcontent">
-                <h3>Week {{ week.number }}</h3>
+            <button class="tablinks" onclick="openTab('Week{{ week.number }}')" id="Week{{ week.number }}link">Week {{ week.number }}</button>
+            {% endfor %}
+        </div>
+        {% for week in weeks %}
+        <div id="Week{{ week.number }}" class="tabcontent">
+            <h3>Week {{ week.number }}</h3>
+            <div class="stats-tables">
                 <table>
                     <tr>
                         <td>Wins:</td>
@@ -71,35 +238,39 @@
                     </tr>
                     <tr>
                         <td>Win rate:</td>
-                        <td>{{ "{:.1}"|format(week.win_rate) }}%</td>
+                        <td>{% call percent_float_with_diff(week.winrate) %}</td>
                     </tr>
                     <tr>
                         <td>CS/min</td>
-                        <td>{{ "{:.1}"|format(week.cs_per_minute_average) }}/{{ "{:.1}"|format(week.cs_per_minute_median) }}</td>
+                        <td>{% call float_with_diff(week.cs_per_minute) %}</td>
                     </tr>
                     <tr>
                         <td>Gold share:</td>
-                        <td>{{ "{:.1}"|format(week.gold_share_average) }}%/{{ "{:.1}"|format(week.gold_share_median) }}%</td>
+                        <td>{% call float_with_diff(week.gold_share) %}</td>
                     </tr>
                     <tr>
                         <td>Champion Damage Share</td>
-                        <td>{{ "{:.1}"|format(week.champion_damage_share_average) }}%/{{ "{:.1}"|format(week.champion_damage_share_median) }}%</td>
+                        <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
                     </tr>
                     <tr>
                         <td>Objective Damage Share</td>
-                        <td>{{ "{:.1}"|format(week.objective_damage_share_average) }}%/{{ "{:.1}"|format(week.objective_damage_share_median) }}%</td>
+                        <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
                     </tr>
                     <tr>
                         <td>Vision Share</td>
-                        <td>{{ "{:.1}"|format(week.vision_share_average) }}%/{{ "{:.1}"|format(week.vision_share_median) }}%</td>
+                        <td>{% call percent_float_with_diff(week.vision_share) %}</td>
+                    </tr>
+                    <tr>
+                        <td>Vision Score/min</td>
+                        <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
                     </tr>
                     <tr>
                         <td>Solo Kills</td>
-                        <td>{{ "{:.1}"|format(week.solo_kills_average) }}/{{ "{:.1}"|format(week.solo_kills_median) }}</td>
+                        <td>{% call float_with_diff(week.solo_kills) %}</td>
                     </tr>
                     <tr>
                         <td>Solo Deaths</td>
-                        <td>{{ "{:.1}"|format(week.solo_deaths_average) }}/{{ "{:.1}"|format(week.solo_deaths_median) }}</td>
+                        <td>{% call float_with_diff(week.solo_deaths) %}</td>
                     </tr>
                 </table>
                 <table>
@@ -114,38 +285,243 @@
                     </thead>
                     <tbody>
                         {% for (minute, minute_stats) in week.at_minute_stats %}
-                            <tr>
-                                <td>{{ minute }}</td>
-                                <td>{{ "{:.1}"|format(minute_stats.cs_per_minute_average) }}/{{ "{:.1}"|format(minute_stats.cs_per_minute_median) }}</td>
-                                <td>{{ "{:.1}"|format(minute_stats.gold_diff_average) }}/{{ "{:.1}"|format(minute_stats.gold_diff_median) }}</td>
-                                <td>{{ "{:.1}"|format(minute_stats.cs_diff_average) }}/{{ "{:.1}"|format(minute_stats.cs_diff_median) }}</td>
-                                <td>{{ "{:.1}"|format(minute_stats.xp_diff_average) }}/{{ "{:.1}"|format(minute_stats.xp_diff_median) }}</td>
-                            </tr>
+                        <tr>
+                            <td>{{ minute }}</td>
+                            <td>{% call float_with_diff(minute_stats.cs_per_minute) %}</td>
+                            <td>{% call float_with_diff(minute_stats.gold_diff) %}</td>
+                            <td>{% call float_with_diff(minute_stats.cs_diff) %}</td>
+                            <td>{% call float_with_diff(minute_stats.xp_diff) %}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% endfor %}
-            <script>
-function openTab(evt, tabName) {
-    let i, tabcontent, tablinks;
-    tabcontent = document.getElementsByClassName("tabcontent");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-    }
-    tablinks = document.getElementsByClassName("tablinks");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-    }
-    let tab = document.getElementById(tabName);
-    tab.style.display = "block";
-    tab.className += " active";
-}
-// Wait for the document to load before showing Tab 1
-document.addEventListener("DOMContentLoaded", function() {
-    // Simulate a click on Tab1
-    openTab(new Event('click'), 'Week1');
-});
-            </script>
-        </body>
-    </html>
+            <div class="all-heatmaps-container">
+                {% for (role, side, data) in week.heatmap_data %}
+                <h4>{{ role }} on the {{ side }} side</h4>
+                <div class="heatmap-container">
+                    <div id="heatmap_{{ week.number }}_{{role}}_{{side}}" class="heatmap">
+                        <p id="heatmap_text_{{ week.number }}_{{role}}_{{side}}"></p>
+                    </div>
+                    <div class="heatmap-controller">
+                        <div class="slider-container">
+                            <div class="slider-track" id="sliderTrackWeek{{ week.number }}_{{role}}_{{side}}"></div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="60"
+                                value="1"
+                                id="lower_slider_{{ week.number }}_{{role}}_{{side}}"
+                                oninput="slideLower('{{ week.number }}_{{role}}_{{side}}')"
+                            >
+                            <input
+                                type="range"
+                                min="1"
+                                max="60"
+                                value="5"
+                                id="upper_slider_{{ week.number }}_{{role}}_{{side}}"
+                                oninput="slideUpper('{{ week.number }}_{{role}}_{{side}}')"
+                            >
+                            <input
+                                type="checkbox"
+                                checked
+                                id="animation_checkbox_{{ week.number }}_{{role}}_{{side}}"
+                                oninput="animationCheckbox('{{ week.number }}_{{role}}_{{side}}')"
+                            >
+                            <label for="animation_checkbox_{{ week.number }}_{{role}}_{{side}}">Animate</label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <script>
+            function openTab(tabName) {
+                let i, tabcontent, tablinks;
+                tabcontent = document.getElementsByClassName("tabcontent");
+                for (i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].style.display = "none";
+                }
+                tablinks = document.getElementsByClassName("tablinks");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(" active", "");
+                }
+                document.getElementById(tabName).style.display = "block";
+                document.getElementById(tabName + 'link').className += " active";
+            }
+            // Wait for the document to load before showing Tab 1
+            document.addEventListener("DOMContentLoaded", function() {
+                openTab('Week1');
+            });
+    </script>
+    <script>
+            var heatmapInstances = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': h337.create({
+                            container: document.getElementById('heatmap_{{ week.number }}_{{role}}_{{side}}'),
+                            radius: 15,
+                        }),
+                    {% endfor %}
+                {% endfor %}
+            };
+            var heatmapTexts = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('heatmap_text_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            var heatmapData = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': JSON.parse('{{ data }}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            Object.keys(heatmapData).forEach(id => {
+                Object.keys(heatmapData[id]).forEach(minute => {
+                    let arr = heatmapData[id][minute];
+                    arr.forEach(obj => {
+                        obj.value = 10;
+                    });
+                });
+            });
+            Object.keys(heatmapInstances).forEach(id => {
+                heatmapInstances[id].setData({
+                    max: 15,
+                    data: heatmapData[id][1],
+                });
+            });
+
+            var animationSettings = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': {
+                            start: 1,
+                            end: 5,
+                            animate: true,
+                            animating: true,
+                        },
+                    {% endfor %}
+                {% endfor %}
+            };
+            let lowerSliders = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('lower_slider_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            let upperSliders = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('upper_slider_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            let sliderTracks = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('sliderTrackWeek{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            let animationCheckboxes = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('animation_checkbox_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            let minGap = 0;
+            let sliderMinValue = 1;
+            let sliderMaxValue = 60;
+            function slideLower(id) {
+                if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
+                    lowerSliders[id].value = parseInt(upperSliders[id].value) - minGap;
+                }
+                animationSettings[id].start = parseInt(lowerSliders[id].value);
+                // This will cause a rerender of the heatmap
+                animationSettings[id].animating = true;
+                fillColor(id);
+            }
+            function slideUpper(id) {
+                if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
+                    upperSliders[id].value = parseInt(lowerSliders[id].value) + minGap;
+                }
+                animationSettings[id].end = parseInt(upperSliders[id].value);
+                // This will cause a rerender of the heatmap
+                animationSettings[id].animating = true;
+                fillColor(id);
+            }
+            function fillColor(id) {
+                percent1 = ((lowerSliders[id].value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                percent2 = ((upperSliders[id].value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                console.log(percent1, percent2);
+                sliderTracks[id].style.background = `linear-gradient(to right, #dadae5 ${percent1}% , #3264fe ${percent1}% , #3264fe ${percent2}%, #dadae5 ${percent2}%)`;
+            }
+
+            async function animate() {
+                let seed = 0;
+                while (true) {
+                    Object.keys(animationSettings).forEach(id => {
+                        if (animationSettings[id].animate) {
+                            animateHeatmap(id, seed);
+                            animationSettings[id].animating = true;
+                        } else {
+                            if (animationSettings[id].animating) {
+                                staticHeatmap(id);
+                                animationSettings[id].animating = false;
+                            }
+                        }
+                    });
+                    seed++;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            function animateHeatmap(id, seed) {
+                let start = animationSettings[id].start;
+                let end = animationSettings[id].end;
+                let minute = (seed % (end - start + 1)) + start;
+                let data = {
+                    data: heatmapData[id][minute],
+                    max: 15
+                }
+                heatmapInstances[id].setData(data);
+                heatmapTexts[id].innerText = `${minute}:00`;
+            }
+
+            function staticHeatmap(id) {
+                let data = [];
+                Object.keys(heatmapData[id]).forEach(minute => {
+                    if (minute >= animationSettings[id].start && minute <= animationSettings[id].end) {
+                        data = data.concat(heatmapData[id][minute]);
+                    }
+                });
+                heatmapInstances[id].setData({
+                    max: 15,
+                    data: data,
+                });
+                heatmapTexts[id].innerText = `${animationSettings[id].start}:00-${animationSettings[id].end}:00`;
+            }
+
+            function animationCheckbox(id) {
+                animationSettings[id].animate = animationCheckboxes[id].checked;
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        slideLower('{{ week.number }}_{{role}}_{{side}}');
+                        slideUpper('{{ week.number }}_{{role}}_{{side}}');
+                    {% endfor %}
+                {% endfor %}
+                animate();
+            });
+    </script>
+</body>
+</html>

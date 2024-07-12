@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Progress Bar with Server-Sent Events</title>
-        <style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetching data for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}</title>
+    <style>
         body {
             display: flex;
             justify-content: center;
@@ -14,77 +14,94 @@
             font-family: Arial, sans-serif;
             background-color: #f0f0f0;
         }
-        #progress-container {
+        #progress-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             width: 80%;
+            max-width: 600px;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        #progress-container {
+            width: 100%;
             background-color: #ddd;
             border-radius: 25px;
+            overflow: hidden;
         }
         #progress-bar {
             width: 0;
             height: 30px;
-            background-color: #4caf50;
-            border-radius: 25px;
+            background-color: darkgreen;
             text-align: center;
             line-height: 30px;
-            color: black;
+            color: white;
         }
-        </style>
-    </head>
-    <body>
-        <div>
-            <div id="progress-container">
-                <div id="progress-bar">0%</div>
-            </div>
+        #progress-text {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="progress-wrapper">
+        <div id="progress-container">
+            <div id="progress-bar">0%</div>
         </div>
-        <br>
         <div id="progress-text"></div>
-        <script>
-    var last_status = '';
-    var total_seconds_left = 0;
-    if (typeof(EventSource) !== "undefined") {
-        const source = new EventSource("/fetch/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/events");
-        source.onmessage = function(event) {
-            let data = JSON.parse(event.data);
-            const progressText = document.getElementById('progress-text');
-            if (data === 'Done') {
-                last_status = 'Done';
-                source.close();
-                progressText.textContent = "Done!";
-                window.location.replace('/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}');
-                return;
-            }
-            if (data.Error) {
-                last_status = 'Error';
-                progressText.textContent = 'An error occurred while fetching data:' + data.Error;
-                source.close();
-                return;
-            }
-            if (data.Fetching) {
-                last_status = 'Fetching';
-                console.log('data.Fetching.percent_done', data.Fetching.percent_done);
-                const progress = data.Fetching.percent_done;
-                const progressBar = document.getElementById('progress-bar');
-                progressBar.style.width = progress + '%';
-                progressBar.textContent = progress + '%';
-                progressText.textContent = 'Fetching data...';
-            }
-            if (data.Waiting) {
-                const progressBar = document.getElementById('progress-bar');
-                const seconds_left = data.Waiting.seconds_left;
-                progressText.textContent = 'Throttled by Riot API, having to wait ' + seconds_left + ' seconds.';
-                if (last_status !== 'Waiting') {
-                    total_seconds_left = seconds_left;
+    </div>
+    <script>
+        var last_status = '';
+        var total_seconds_left = 0;
+        if (typeof(EventSource) !== "undefined") {
+            const source = new EventSource("/fetch/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/events");
+            source.onmessage = function(event) {
+                let data = JSON.parse(event.data);
+                const progressText = document.getElementById('progress-text');
+                if (data === 'Done') {
+                    last_status = 'Done';
+                    source.close();
+                    progressText.textContent = "Done!";
+                    window.location.replace('/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}');
+                    return;
                 }
-                last_status = 'Waiting';
-                console.log('total_seconds_left', total_seconds_left, 'seconds_left', seconds_left);
-                percent_done = 100 * seconds_left / total_seconds_left;
-                console.log('percent_done', percent_done);
-                progressBar.style.width = percent_done + '%';
-            }
-        };
-    } else {
-        alert("Your browser does not support Server-Sent Events.");
-    }
-        </script>
-    </body>
+                if (data.Error) {
+                    last_status = 'Error';
+                    progressText.textContent = 'An error occurred while fetching data: ' + data.Error;
+                    source.close();
+                    return;
+                }
+                if (data.Fetching) {
+                    last_status = 'Fetching';
+                    const progress = data.Fetching.percent_done;
+                    const progressBar = document.getElementById('progress-bar');
+                    progressBar.style.width = progress + '%';
+                    progressBar.style.backgroundColor = 'darkgreen';
+                    progressBar.textContent = progress + '%';
+                    progressText.textContent = 'Fetching data...';
+                }
+                if (data.Waiting) {
+                    const progressBar = document.getElementById('progress-bar');
+                    const seconds_left = data.Waiting.seconds_left;
+                    progressText.textContent = 'Throttled by Riot API, having to wait before continuing.';
+                    if (last_status !== 'Waiting') {
+                        total_seconds_left = seconds_left;
+                    }
+                    last_status = 'Waiting';
+                    const percent_done = 100 * seconds_left / total_seconds_left;
+                    progressBar.textContent = seconds_left + 's';
+                    progressBar.style.width = percent_done + '%';
+                    progressBar.style.backgroundColor = 'darkred';
+                    console.log(percent_done);
+                }
+            };
+        } else {
+            alert("Your browser does not support Server-Sent Events.");
+        }
+    </script>
+</body>
 </html>

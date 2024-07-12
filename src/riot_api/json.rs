@@ -109,6 +109,21 @@ pub struct PerkStyle {
     pub style: i32,
 }
 
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize, strum::EnumIter, strum::Display,
+)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Role {
+    Top,
+    Jungle,
+    Middle,
+    Bottom,
+    #[serde(rename = "UTILITY")]
+    Support,
+    #[serde(rename = "")]
+    None,
+}
+
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -211,7 +226,7 @@ pub struct Participant {
     pub summoner_name: String,
     pub team_early_surrendered: bool,
     pub team_id: i32,
-    pub team_position: String,
+    pub team_position: Role,
     pub time_c_cing_others: i32,
     pub time_played: i32,
     pub total_ally_jungle_minions_killed: i32,
@@ -376,14 +391,14 @@ pub struct ParticipantFrame {
     pub xp: i32,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
 }
 
 impl Point {
-    pub fn distance(&self, other: &Self) -> f64 {
+    pub fn distance(self, other: Self) -> f64 {
         // X and Y should be 16000 at most, and 2*(16K^2) = 512M, which fits in i32
         let dx = self.x - other.x;
         let dy = self.y - other.y;
@@ -391,6 +406,7 @@ impl Point {
     }
 }
 
+#[allow(clippy::struct_field_names)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Damage {
@@ -425,6 +441,7 @@ pub struct ChampionKill {
     pub victim_id: usize,
 }
 
+#[allow(clippy::enum_variant_names)]
 #[serde_as]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(

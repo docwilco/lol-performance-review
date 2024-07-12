@@ -5,7 +5,6 @@ use actix_web_lab::{
 };
 use chrono::Utc;
 use serde::Serialize;
-use std::ops::DerefMut;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -88,7 +87,7 @@ pub async fn check_or_start_fetching(state: State, player: &Player) -> Result<Re
         .fetch_status_per_player
         .entry(player.clone())
         .or_insert(StatusBroadcaster::new());
-    let broadcaster = broadcaster_ref.deref_mut();
+    let broadcaster = &mut *broadcaster_ref;
     if matches!(
         broadcaster.last_status,
         FetchStatus::Starting | FetchStatus::Error(_)
@@ -104,7 +103,7 @@ pub async fn check_or_start_fetching(state: State, player: &Player) -> Result<Re
                         .get_mut(&player_clone)
                         .unwrap()
                         .broadcast(FetchStatus::Done)
-                        .await
+                        .await;
                 }
                 Err(e) => {
                     state
@@ -112,7 +111,7 @@ pub async fn check_or_start_fetching(state: State, player: &Player) -> Result<Re
                         .get_mut(&player_clone)
                         .unwrap()
                         .broadcast(FetchStatus::Error(e.to_string()))
-                        .await
+                        .await;
                 }
             }
         });

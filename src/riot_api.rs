@@ -1,7 +1,7 @@
 use crate::{fetcher::FetchStatus, ApiRegion, Player, Result, State};
 use cached::proc_macro::io_cached;
 use chrono::{DateTime, Utc};
-use log::{debug, info};
+use log::info;
 use serde_json::Value;
 
 pub mod json;
@@ -15,19 +15,19 @@ pub mod json;
 )]
 pub async fn get_puuid_raw(state: &State, player: &Player) -> Result<Value> {
     let region = ApiRegion::Europe;
-    Ok(state
+    state
         .client
         .get::<Value>(
             region,
             "/riot/account/v1/accounts/by-riot-id",
-            [player.game_name.as_str(), &player.tag_line.as_str()],
+            [player.game_name.as_str(), player.tag_line.as_str()],
             player,
         )
-        .await?)
+        .await
 }
 
 pub async fn get_puuid(state: &State, player: &Player) -> Result<String> {
-    let json = get_puuid_raw(state, &player).await?;
+    let json = get_puuid_raw(state, player).await?;
     let puuid = json["puuid"].as_str().ok_or("No PUUID")?;
     Ok(puuid.to_string())
 }
@@ -105,15 +105,15 @@ pub async fn update_match_history(
     start: DateTime<Utc>,
 ) -> Result<()> {
     info!("Updating match history for {player}");
-    let puuid = get_puuid(&state, &player).await?;
+    let puuid = get_puuid(state, player).await?;
     let region = player.region.into();
     let mut match_ids = vec![];
     let mut earliest_match = None;
     while earliest_match.map_or(true, |earliest| earliest > start) {
-        match_ids.extend(get_match_history(&state, region, &puuid, earliest_match, player).await?);
+        match_ids.extend(get_match_history(state, region, &puuid, earliest_match, player).await?);
         earliest_match = match match_ids.last() {
             Some(match_id) => {
-                let match_info = get_match(&state, region, match_id, player).await?;
+                let match_info = get_match(state, region, match_id, player).await?;
                 Some(match_info.info.game_start_timestamp)
             }
             None => return Err("No matches found".into()),
@@ -121,23 +121,22 @@ pub async fn update_match_history(
     }
     let mut matches = state.matches_per_puuid.entry(puuid).or_default();
     for (index, match_id) in match_ids.iter().enumerate() {
-        debug!("Getting match {}", match_id);
         if !matches.contains_key(match_id) {
             matches.insert(
                 match_id.to_string(),
-                get_match(&state, region, match_id, player).await?,
+                get_match(state, region, match_id, player).await?,
             );
         }
         if !state.timeline_per_match.contains_key(match_id) {
             state.timeline_per_match.insert(
                 match_id.to_string(),
-                get_match_timeline(&state, region, match_id, player).await?,
+                get_match_timeline(state, region, match_id, player).await?,
             );
         }
-        if let Some(mut broadcaster) = state.fetch_status_per_player.get_mut(&player) {
+        if let Some(mut broadcaster) = state.fetch_status_per_player.get_mut(player) {
             broadcaster
                 .broadcast(FetchStatus::Fetching {
-                    percent_done: ((index + 1) * 100 / match_ids.len()) as u8,
+                    percent_done: u8::try_from((index + 1) * 100 / match_ids.len()).unwrap(),
                 })
                 .await;
         }

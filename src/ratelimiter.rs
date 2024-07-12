@@ -134,7 +134,7 @@ impl ApiClient {
             debug!("Rate limited, retrying in {} seconds", retry_after);
             let mut interval = interval(Duration::from_secs(1));
             while retry_after > 0 {
-                let broadcaster = self.fetch_status_per_player.get_mut(&player);
+                let broadcaster = self.fetch_status_per_player.get_mut(player);
                 if let Some(mut broadcaster) = broadcaster {
                     broadcaster.broadcast(crate::fetcher::FetchStatus::Waiting { seconds_left: retry_after }).await;
                 }
