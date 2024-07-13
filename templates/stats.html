@@ -322,14 +322,35 @@ FUCKING HELL
                                 id="upper_slider_{{ week.number }}_{{role}}_{{side}}"
                                 oninput="slideUpper('{{ week.number }}_{{role}}_{{side}}')"
                             >
-                            <input
-                                type="checkbox"
-                                checked
-                                id="animation_checkbox_{{ week.number }}_{{role}}_{{side}}"
-                                oninput="animationCheckbox('{{ week.number }}_{{role}}_{{side}}')"
-                            >
-                            <label for="animation_checkbox_{{ week.number }}_{{role}}_{{side}}">Animate</label>
                         </div>
+                        <label for="start_{{ week.number }}_{{role}}_{{side}}">Start:</label>
+                        <input
+                            type="number"
+                            value="1"
+                            min="1"
+                            max="60"
+                            style="width: 50px"
+                            id="start_{{ week.number }}_{{role}}_{{side}}"
+                            oninput="startChange('{{ week.number }}_{{role}}_{{side}}')"
+                        >
+                        <label for="end_{{ week.number }}_{{role}}_{{side}}">End:</label>
+                        <input
+                            type="number"
+                            value="5"
+                            min="1"
+                            max="60"
+                            style="width: 50px"
+                            id="end_{{ week.number }}_{{role}}_{{side}}"
+                            oninput="endChange('{{ week.number }}_{{role}}_{{side}}')"
+                        >
+                        <br>
+                        <input
+                            type="checkbox"
+                            checked
+                            id="animation_checkbox_{{ week.number }}_{{role}}_{{side}}"
+                            oninput="animationCheckbox('{{ week.number }}_{{role}}_{{side}}')"
+                        >
+                        <label for="animation_checkbox_{{ week.number }}_{{role}}_{{side}}">Animate</label>
                     </div>
                 </div>
                 {% endfor %}
@@ -429,6 +450,20 @@ FUCKING HELL
                     {% endfor %}
                 {% endfor %}
             };
+            var startNumbers = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('start_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
+            var endNumbers = {
+                {% for week in weeks %}
+                    {% for (role, side, data) in week.heatmap_data %}
+                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('end_{{ week.number }}_{{role}}_{{side}}'),
+                    {% endfor %}
+                {% endfor %}
+            };
             let animationCheckboxes = {
                 {% for week in weeks %}
                     {% for (role, side, data) in week.heatmap_data %}
@@ -443,7 +478,9 @@ FUCKING HELL
                 if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
                     lowerSliders[id].value = parseInt(upperSliders[id].value) - minGap;
                 }
-                animationSettings[id].start = parseInt(lowerSliders[id].value);
+                let start = parseInt(lowerSliders[id].value);
+                animationSettings[id].start = start;
+                startNumbers[id].value = start;
                 // This will cause a rerender of the heatmap
                 animationSettings[id].animating = true;
                 fillColor(id);
@@ -452,10 +489,22 @@ FUCKING HELL
                 if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
                     upperSliders[id].value = parseInt(lowerSliders[id].value) + minGap;
                 }
-                animationSettings[id].end = parseInt(upperSliders[id].value);
+                let end = parseInt(upperSliders[id].value);
+                animationSettings[id].end = end;
+                endNumbers[id].value = end;
                 // This will cause a rerender of the heatmap
                 animationSettings[id].animating = true;
                 fillColor(id);
+            }
+            function startChange(id) {
+                let start = parseInt(startNumbers[id].value);
+                lowerSliders[id].value = start;
+                slideLower(id);
+            }
+            function endChange(id) {
+                let end = parseInt(endNumbers[id].value);
+                upperSliders[id].value = end;
+                slideUpper(id);
             }
             function fillColor(id) {
                 percent1 = ((lowerSliders[id].value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;

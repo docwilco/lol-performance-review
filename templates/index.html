@@ -1,48 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Combiner</title>
-    <script>
-        function combineInputs() {
-            // Get the values from the inputs
-            let region = document.getElementById("region").value;
-            let gameName = document.getElementById("gameName").value;
-            let tagLine = document.getElementById("tagLine").value;
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Input Combiner</title>
+        <script>
+            function combineInputs() {
+                let region = document.getElementById("region").value;
+                let gameName = document.getElementById("gameName").value;
+                let tagLine = document.getElementById("tagLine").value;
 
-            // Combine the values into a single URL
-            let combinedURL = "/stats/" + encodeURIComponent(region) +
-                              "/" + encodeURIComponent(gameName) +
-                              "/" + encodeURIComponent(tagLine);
+                let combinedURL = "/stats/" + encodeURIComponent(region) +
+                                "/" + encodeURIComponent(gameName) +
+                                "/" + encodeURIComponent(tagLine);
 
-            // Redirect the user to the combined URL
-            window.location.href = combinedURL;
-        }
-    </script>
-</head>
-<body>
-    <h1></h1>
-
-    <label for="region">Region:</label>
-    <select id="region">
-        {% for region in regions %}
-        <option value="{{ region }}">{{ region }}</option>
-        {% endfor %}
-    </select>
-
-    <br><br>
-
-    <label for="gameName">Game Name:</label>
-    <input type="text" id="gameName">
-
-    <br><br>
-
-    <label for="tagLine">Tag Line:</label>
-    <input type="text" id="tagLine">
-
-    <br><br>
-
-    <button onclick="combineInputs()">Go</button>
-</body>
+                window.location.href = combinedURL;
+            }
+        </script>
+    </head>
+    <body>
+        <h1></h1>
+        <form id="player-selection">
+            <label for="region">Region:</label>
+            <select id="region">
+                {% for region in regions %}
+                <option value="{{ region }}">{{ region }}</option>
+                {% endfor %}
+            </select>
+            <br>
+            <br>
+            <label for="gameName">Game Name:</label>
+            <input type="text" id="gameName">
+            <br>
+            <br>
+            <label for="tagLine">Tag Line:</label>
+            <input type="text" id="tagLine">
+            <br>
+            <br>
+            <button onclick="combineInputs()">Go</button>
+        </form>
+        <script>
+        document.getElementById('player-selection').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                combineInputs();
+            }
+        });
+        </script>
+    </body>
 </html>
