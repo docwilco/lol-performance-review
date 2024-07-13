@@ -110,10 +110,15 @@ FUCKING HELL
                 font-weight: bold;
             }
 
+            .all-heatmaps-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+
             .heatmap-container {
                 margin-top: 20px;
-                width: 100%;
-                display: flex;
+                display: block;
             }
 
             .heatmap-controller {
@@ -296,61 +301,65 @@ FUCKING HELL
                     </tbody>
                 </table>
             </div>
+        </div>
+        {% endfor %}
+        <div class="heatmap-controller">
+            <div class="slider-container">
+                <div class="slider-track" id="slider-track"></div>
+                <input
+                    type="range"
+                    min="1"
+                    max="60"
+                    value="1"
+                    id="lower-slider"
+                    oninput="slideLower()"
+                >
+                <input
+                    type="range"
+                    min="1"
+                    max="60"
+                    value="5"
+                    id="upper-slider"
+                    oninput="slideUpper()"
+                >
+            </div>
+            <label for="start-number">Start:</label>
+            <input
+                type="number"
+                value="1"
+                min="1"
+                max="60"
+                style="width: 50px"
+                id="start-number"
+                oninput="startChange()"
+            >
+            <label for="end-number">End:</label>
+            <input
+                type="number"
+                value="5"
+                min="1"
+                max="60"
+                style="width: 50px"
+                id="end-number"
+                oninput="endChange()"
+            >
+            <br>
+            <input
+                type="checkbox"
+                checked
+                id="animation-checkbox"
+                oninput="animationCheckboxInput()"
+            >
+            <label for="animation-checkbox">Animate</label>
+        </div>
+        {% for week in weeks %}
+        <div id="Week{{ week.number }}_2" class="tabcontent">
             <div class="all-heatmaps-container">
                 {% for (role, side, data) in week.heatmap_data %}
-                <h4>{{ role }} on the {{ side }} side</h4>
                 <div class="heatmap-container">
+                    <h4>{{ role }} on the {{ side }} side</h4>
                     <div id="heatmap_{{ week.number }}_{{role}}_{{side}}" class="heatmap">
                         <p id="heatmap_text_{{ week.number }}_{{role}}_{{side}}"></p>
-                    </div>
-                    <div class="heatmap-controller">
-                        <div class="slider-container">
-                            <div class="slider-track" id="sliderTrackWeek{{ week.number }}_{{role}}_{{side}}"></div>
-                            <input
-                                type="range"
-                                min="1"
-                                max="60"
-                                value="1"
-                                id="lower_slider_{{ week.number }}_{{role}}_{{side}}"
-                                oninput="slideLower('{{ week.number }}_{{role}}_{{side}}')"
-                            >
-                            <input
-                                type="range"
-                                min="1"
-                                max="60"
-                                value="5"
-                                id="upper_slider_{{ week.number }}_{{role}}_{{side}}"
-                                oninput="slideUpper('{{ week.number }}_{{role}}_{{side}}')"
-                            >
-                        </div>
-                        <label for="start_{{ week.number }}_{{role}}_{{side}}">Start:</label>
-                        <input
-                            type="number"
-                            value="1"
-                            min="1"
-                            max="60"
-                            style="width: 50px"
-                            id="start_{{ week.number }}_{{role}}_{{side}}"
-                            oninput="startChange('{{ week.number }}_{{role}}_{{side}}')"
-                        >
-                        <label for="end_{{ week.number }}_{{role}}_{{side}}">End:</label>
-                        <input
-                            type="number"
-                            value="5"
-                            min="1"
-                            max="60"
-                            style="width: 50px"
-                            id="end_{{ week.number }}_{{role}}_{{side}}"
-                            oninput="endChange('{{ week.number }}_{{role}}_{{side}}')"
-                        >
-                        <br>
-                        <input
-                            type="checkbox"
-                            checked
-                            id="animation_checkbox_{{ week.number }}_{{role}}_{{side}}"
-                            oninput="animationCheckbox('{{ week.number }}_{{role}}_{{side}}')"
-                        >
-                        <label for="animation_checkbox_{{ week.number }}_{{role}}_{{side}}">Animate</label>
                     </div>
                 </div>
                 {% endfor %}
@@ -370,6 +379,7 @@ FUCKING HELL
                     tablinks[i].className = tablinks[i].className.replace(" active", "");
                 }
                 document.getElementById(tabName).style.display = "block";
+                document.getElementById(tabName + '_2').style.display = "block";
                 document.getElementById(tabName + 'link').className += " active";
             }
             // Wait for the document to load before showing Tab 1
@@ -418,157 +428,113 @@ FUCKING HELL
             });
 
             var animationSettings = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': {
-                            start: 1,
-                            end: 5,
-                            animate: true,
-                            animating: true,
-                        },
-                    {% endfor %}
-                {% endfor %}
+                start: 1,
+                end: 5,
+                animate: true,
+                animating: true,
             };
-            let lowerSliders = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('lower_slider_{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
-            let upperSliders = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('upper_slider_{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
-            let sliderTracks = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('sliderTrackWeek{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
-            var startNumbers = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('start_{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
-            var endNumbers = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('end_{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
-            let animationCheckboxes = {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                '{{ week.number }}_{{role}}_{{side}}': document.getElementById('animation_checkbox_{{ week.number }}_{{role}}_{{side}}'),
-                    {% endfor %}
-                {% endfor %}
-            };
+            let lowerSlider = document.getElementById('lower-slider');
+            let upperSlider = document.getElementById('upper-slider');
+            let sliderTrack = document.getElementById('slider-track');
+            var startNumber = document.getElementById('start-number');
+            var endNumber = document.getElementById('end-number');
+            let animationCheckbox = document.getElementById('animation-checkbox');
             let minGap = 0;
             let sliderMinValue = 1;
             let sliderMaxValue = 60;
-            function slideLower(id) {
-                if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
-                    lowerSliders[id].value = parseInt(upperSliders[id].value) - minGap;
+
+            function slideLower() {
+                if (parseInt(upperSlider.value) - parseInt(lowerSlider.value) <= minGap) {
+                    lowerSlider.value = parseInt(upperSlider.value) - minGap;
                 }
-                let start = parseInt(lowerSliders[id].value);
-                animationSettings[id].start = start;
-                startNumbers[id].value = start;
+                let start = parseInt(lowerSlider.value);
+                animationSettings.start = start;
+                startNumber.value = start;
                 // This will cause a rerender of the heatmap
-                animationSettings[id].animating = true;
-                fillColor(id);
+                animationSettings.animating = true;
+                fillColor();
             }
-            function slideUpper(id) {
-                if (parseInt(upperSliders[id].value) - parseInt(lowerSliders[id].value) <= minGap) {
-                    upperSliders[id].value = parseInt(lowerSliders[id].value) + minGap;
+            function slideUpper() {
+                if (parseInt(upperSlider.value) - parseInt(lowerSlider.value) <= minGap) {
+                    upperSlider.value = parseInt(lowerSlider.value) + minGap;
                 }
-                let end = parseInt(upperSliders[id].value);
-                animationSettings[id].end = end;
-                endNumbers[id].value = end;
+                let end = parseInt(upperSlider.value);
+                animationSettings.end = end;
+                endNumber.value = end;
                 // This will cause a rerender of the heatmap
-                animationSettings[id].animating = true;
-                fillColor(id);
+                animationSettings.animating = true;
+                fillColor();
             }
-            function startChange(id) {
-                let start = parseInt(startNumbers[id].value);
-                lowerSliders[id].value = start;
-                slideLower(id);
+            function startChange() {
+                let start = parseInt(startNumber.value);
+                lowerSlider.value = start;
+                slideLower();
             }
-            function endChange(id) {
-                let end = parseInt(endNumbers[id].value);
-                upperSliders[id].value = end;
-                slideUpper(id);
+            function endChange() {
+                let end = parseInt(endNumber.value);
+                upperSlider.value = end;
+                slideUpper();
             }
-            function fillColor(id) {
-                percent1 = ((lowerSliders[id].value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
-                percent2 = ((upperSliders[id].value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
-                console.log(percent1, percent2);
-                sliderTracks[id].style.background = `linear-gradient(to right, #dadae5 ${percent1}% , #3264fe ${percent1}% , #3264fe ${percent2}%, #dadae5 ${percent2}%)`;
+            function fillColor() {
+                percent1 = ((lowerSlider.value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                percent2 = ((upperSlider.value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                sliderTrack.style.background = `linear-gradient(to right, #dadae5 ${percent1}% , #3264fe ${percent1}% , #3264fe ${percent2}%, #dadae5 ${percent2}%)`;
             }
 
             async function animate() {
                 let seed = 0;
                 while (true) {
-                    Object.keys(animationSettings).forEach(id => {
-                        if (animationSettings[id].animate) {
-                            animateHeatmap(id, seed);
-                            animationSettings[id].animating = true;
-                        } else {
-                            if (animationSettings[id].animating) {
-                                staticHeatmap(id);
-                                animationSettings[id].animating = false;
-                            }
+                    if (animationSettings.animate) {
+                        animateHeatmap(seed);
+                        animationSettings.animating = true;
+                    } else {
+                        if (animationSettings.animating) {
+                            staticHeatmap();
+                            animationSettings.animating = false;
                         }
-                    });
+                    }
                     seed++;
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
 
-            function animateHeatmap(id, seed) {
-                let start = animationSettings[id].start;
-                let end = animationSettings[id].end;
+            function animateHeatmap(seed) {
+                let start = animationSettings.start;
+                let end = animationSettings.end;
                 let minute = (seed % (end - start + 1)) + start;
-                let data = {
-                    data: heatmapData[id][minute],
-                    max: 15
-                }
-                heatmapInstances[id].setData(data);
-                heatmapTexts[id].innerText = `${minute}:00`;
-            }
-
-            function staticHeatmap(id) {
-                let data = [];
-                Object.keys(heatmapData[id]).forEach(minute => {
-                    if (minute >= animationSettings[id].start && minute <= animationSettings[id].end) {
-                        data = data.concat(heatmapData[id][minute]);
+                Object.keys(heatmapInstances).forEach(id => {
+                    let data = {
+                        data: heatmapData[id][minute],
+                        max: 15
                     }
+                    heatmapInstances[id].setData(data);
+                    heatmapTexts[id].innerText = `${minute}:00`;
                 });
-                heatmapInstances[id].setData({
-                    max: 15,
-                    data: data,
-                });
-                heatmapTexts[id].innerText = `${animationSettings[id].start}:00-${animationSettings[id].end}:00`;
             }
 
-            function animationCheckbox(id) {
-                animationSettings[id].animate = animationCheckboxes[id].checked;
+            function staticHeatmap() {
+                Object.keys(heatmapInstances).forEach(id => {
+                    let data = [];
+                    Object.keys(heatmapData[id]).forEach(minute => {
+                        if (minute >= animationSettings.start && minute <= animationSettings.end) {
+                            data = data.concat(heatmapData[id][minute]);
+                        }
+                    });
+                    heatmapInstances[id].setData({
+                        max: 15,
+                        data: data,
+                    });
+                    heatmapTexts[id].innerText = `${animationSettings.start}:00-${animationSettings.end}:00`;
+                });
+            }
+
+            function animationCheckboxInput(id) {
+                animationSettings.animate = animationCheckbox.checked;
             }
 
             document.addEventListener("DOMContentLoaded", function() {
-                {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
-                        slideLower('{{ week.number }}_{{role}}_{{side}}');
-                        slideUpper('{{ week.number }}_{{role}}_{{side}}');
-                    {% endfor %}
-                {% endfor %}
+                slideLower();
+                slideUpper();
                 animate();
             });
     </script>
