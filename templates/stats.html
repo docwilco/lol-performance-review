@@ -3,18 +3,14 @@
 {% endmacro %}
 
 {% macro float_diff(number) %}
-    {% match number.has_visible_diff(10.0) %}
+    {% match number.has_visible_diff() %}
         {% when Ordering::Less %}
             {% if let Some(delta) = number.delta %}
 <span class="negative">{{ "{:+.1}"|format(delta) }}</span>
-{% else %}
-FUCKING HELL
             {% endif %}
         {% when Ordering::Greater %}
             {% if let Some(delta) = number.delta %}
 <span class="positive">{{ "{:+.1}"|format(delta) }}</span>
-{% else %}
-FUCKING HELL
             {% endif %}
         {% when Ordering::Equal %}
     {% endmatch %}
@@ -46,21 +42,26 @@ FUCKING HELL
             }
 
             .tab {
-                overflow: hidden;
+                position: fixed;
+                top: 20px; /* Adjust as needed */
+                left: 0;
+                width: 200px; /* Adjust as needed */
                 border: 1px solid #ccc;
                 background-color: #f1f1f1;
                 margin: 20px auto;
-                width: 80%;
+                width: 100px;
             }
 
             .tab button {
+                display: block;
+                width: 100px;
                 background-color: inherit;
-                float: left;
                 border: none;
                 outline: none;
                 cursor: pointer;
                 padding: 14px 16px;
                 transition: 0.3s;
+                text-align: left;
             }
 
             .tab button:hover {
@@ -122,9 +123,14 @@ FUCKING HELL
             }
 
             .heatmap-controller {
-                margin-top: 10px;
-                width: 48%;
-                padding: 20px;
+                position: fixed;
+                bottom: 0px;
+                width: 100%;
+                padding: 10px;
+                background-color: #eee;
+                border-width: 1px 0 0 0;
+                border-style: solid;
+                border-color: #aaa;
             }
 
             .heatmap {
@@ -165,9 +171,12 @@ FUCKING HELL
             }
             .slider-container {
                 position: relative;
+                width: 50%;
+                height: 40px;
+            }
+            .bottom-filler {
+                height: 250px;
                 width: 100%;
-                height: 100px;
-                margin-top: 30px;
             }
             input[type="range"]::-webkit-slider-runnable-track {
                 -webkit-appearance: none;
@@ -301,59 +310,6 @@ FUCKING HELL
                     </tbody>
                 </table>
             </div>
-        </div>
-        {% endfor %}
-        <div class="heatmap-controller">
-            <div class="slider-container">
-                <div class="slider-track" id="slider-track"></div>
-                <input
-                    type="range"
-                    min="1"
-                    max="60"
-                    value="1"
-                    id="lower-slider"
-                    oninput="slideLower()"
-                >
-                <input
-                    type="range"
-                    min="1"
-                    max="60"
-                    value="5"
-                    id="upper-slider"
-                    oninput="slideUpper()"
-                >
-            </div>
-            <label for="start-number">Start:</label>
-            <input
-                type="number"
-                value="1"
-                min="1"
-                max="60"
-                style="width: 50px"
-                id="start-number"
-                oninput="startChange()"
-            >
-            <label for="end-number">End:</label>
-            <input
-                type="number"
-                value="5"
-                min="1"
-                max="60"
-                style="width: 50px"
-                id="end-number"
-                oninput="endChange()"
-            >
-            <br>
-            <input
-                type="checkbox"
-                checked
-                id="animation-checkbox"
-                oninput="animationCheckboxInput()"
-            >
-            <label for="animation-checkbox">Animate</label>
-        </div>
-        {% for week in weeks %}
-        <div id="Week{{ week.number }}_2" class="tabcontent">
             <div class="all-heatmaps-container">
                 {% for (role, side, data) in week.heatmap_data %}
                 <div class="heatmap-container">
@@ -367,6 +323,55 @@ FUCKING HELL
         </div>
         {% endfor %}
     </div>
+    <div class="heatmap-controller">
+        <div class="slider-container">
+            <div class="slider-track" id="slider-track"></div>
+            <input
+                type="range"
+                min="1"
+                max="60"
+                value="1"
+                id="lower-slider"
+                oninput="slideLower()"
+            >
+            <input
+                type="range"
+                min="1"
+                max="60"
+                value="5"
+                id="upper-slider"
+                oninput="slideUpper()"
+            >
+        </div>
+        <label for="start-number">Start:</label>
+        <input
+            type="number"
+            value="1"
+            min="1"
+            max="60"
+            style="width: 50px"
+            id="start-number"
+            oninput="startChange()"
+        >
+        <label for="end-number">End:</label>
+        <input
+            type="number"
+            value="5"
+            min="1"
+            max="60"
+            style="width: 50px"
+            id="end-number"
+            oninput="endChange()"
+        >
+        <input
+            type="checkbox"
+            checked
+            id="animation-checkbox"
+            oninput="animationCheckboxInput()"
+        >
+        <label for="animation-checkbox">Animate</label>
+    </div>
+    <div class="bottom-filler"></div>
     <script>
             function openTab(tabName) {
                 let i, tabcontent, tablinks;
@@ -379,7 +384,6 @@ FUCKING HELL
                     tablinks[i].className = tablinks[i].className.replace(" active", "");
                 }
                 document.getElementById(tabName).style.display = "block";
-                document.getElementById(tabName + '_2').style.display = "block";
                 document.getElementById(tabName + 'link').className += " active";
             }
             // Wait for the document to load before showing Tab 1
@@ -503,12 +507,16 @@ FUCKING HELL
                 let end = animationSettings.end;
                 let minute = (seed % (end - start + 1)) + start;
                 Object.keys(heatmapInstances).forEach(id => {
-                    let data = {
-                        data: heatmapData[id][minute],
-                        max: 15
+                    let points = heatmapData[id][minute];
+                    if (points !== undefined) {                        
+                        let data = {
+                            data: heatmapData[id][minute],
+                            max: 15
+                        }
+                        console.log(data);
+                        heatmapInstances[id].setData(data);
+                        heatmapTexts[id].innerText = `${minute}:00`;
                     }
-                    heatmapInstances[id].setData(data);
-                    heatmapTexts[id].innerText = `${minute}:00`;
                 });
             }
 

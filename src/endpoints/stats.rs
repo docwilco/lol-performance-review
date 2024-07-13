@@ -198,6 +198,7 @@ struct NumberWithOptionalDelta {
 
 impl From<f64> for NumberWithOptionalDelta {
     fn from(number: f64) -> Self {
+        let number = (number * 10.0).round() / 10.0;
         Self {
             number,
             delta: None,
@@ -208,6 +209,7 @@ impl From<f64> for NumberWithOptionalDelta {
 
 impl NumberWithOptionalDelta {
     fn from_up_is_bad(number: f64) -> Self {
+        let number = (number * 10.0).round() / 10.0;
         Self {
             number,
             delta: None,
@@ -217,7 +219,8 @@ impl NumberWithOptionalDelta {
     fn compare_to(&mut self, other: &Self) {
         self.delta = Some(self.number - other.number);
     }
-    fn has_visible_diff(&self, mut factor: f64) -> Ordering {
+    fn has_visible_diff(&self) -> Ordering {
+        let mut factor = 10.0;
         if let Some(delta) = self.delta {
             if !self.up_is_good {
                 factor = -factor;
