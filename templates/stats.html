@@ -311,9 +311,9 @@
                 </table>
             </div>
             <div class="all-heatmaps-container">
-                {% for (role, side, data) in week.heatmap_data %}
+                {% for (role, side, count, data) in week.heatmap_data %}
                 <div class="heatmap-container">
-                    <h4>{{ role }} on the {{ side }} side</h4>
+                    <h4>{{ role }} on the {{ side }} side ({{ count}}x)</h4>
                     <div id="heatmap_{{ week.number }}_{{role}}_{{side}}" class="heatmap">
                         <p id="heatmap_text_{{ week.number }}_{{role}}_{{side}}"></p>
                     </div>
@@ -394,7 +394,7 @@
     <script>
             var heatmapInstances = {
                 {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
+                    {% for (role, side, count, data) in week.heatmap_data %}
                         '{{ week.number }}_{{role}}_{{side}}': h337.create({
                             container: document.getElementById('heatmap_{{ week.number }}_{{role}}_{{side}}'),
                             radius: 15,
@@ -404,14 +404,14 @@
             };
             var heatmapTexts = {
                 {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
+                    {% for (role, side, count, data) in week.heatmap_data %}
                         '{{ week.number }}_{{role}}_{{side}}': document.getElementById('heatmap_text_{{ week.number }}_{{role}}_{{side}}'),
                     {% endfor %}
                 {% endfor %}
             };
             var heatmapData = {
                 {% for week in weeks %}
-                    {% for (role, side, data) in week.heatmap_data %}
+                    {% for (role, side, count, data) in week.heatmap_data %}
                         '{{ week.number }}_{{role}}_{{side}}': JSON.parse('{{ data }}'),
                     {% endfor %}
                 {% endfor %}

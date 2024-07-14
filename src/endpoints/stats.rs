@@ -19,7 +19,6 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt::{self, Display, Formatter},
-    vec,
 };
 
 const MINUTES_AT: [u32; 4] = [5, 10, 15, 20];
@@ -164,15 +163,16 @@ impl StatsAtMinute {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, strum::EnumIter, strum::Display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, strum::EnumIter, strum::Display)]
 enum Side {
     Blue,
     Red,
 }
 
-type HeatMapData = Vec<(Role, Side, String)>;
+type HeatMapData = Vec<(Role, Side, usize, String)>;
 type HeatMapDataGathering = HashMap<(Role, Side), HashMap<i64, Vec<json::Point>>>;
 
+#[derive(Default)]
 struct WeekStatsGathering {
     wins: u32,
     losses: u32,
@@ -187,6 +187,7 @@ struct WeekStatsGathering {
     stats_at: HashMap<u32, Vec<StatsAtMinuteGathering>>,
     heatmap_data: HeatMapDataGathering,
     roles: Vec<Role>,
+    roles_sides: Vec<(Role, Side)>,
 }
 
 #[derive(Clone, Debug)]
@@ -314,21 +315,7 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
         .map(|(weeks_ago, matches)| {
             let matches = matches.map(|(_, m)| m).collect::<Vec<_>>();
             let week_stats = matches.iter().fold(
-                WeekStatsGathering {
-                    wins: 0,
-                    losses: 0,
-                    cs_per_minute: vec![],
-                    gold_share: vec![],
-                    champion_damage_share: vec![],
-                    objective_damage_share: vec![],
-                    vision_share: vec![],
-                    vision_score_per_minute: vec![],
-                    solo_kills: vec![],
-                    solo_deaths: vec![],
-                    stats_at: HashMap::new(),
-                    heatmap_data: HashMap::new(),
-                    roles: vec![],
-                },
+                WeekStatsGathering::default(),
                 |mut stats, m| {
                     let timeline = state.timeline_per_match.get(&m.metadata.match_id).unwrap();
                     let player = get_player(m, &puuid);
@@ -478,6 +465,7 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                     };
                     let role = player.team_position;
                     stats.roles.push(role);
+                    stats.roles_sides.push((role, side));
                     let heatmap_data = stats.heatmap_data.entry((role, side)).or_default();
                     for frame in &timeline.info.frames {
                         let minute = frame.timestamp.num_minutes();
@@ -531,17 +519,19 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                 .collect();
 
             let role_counts = week_stats.roles.into_iter().counts();
+            let role_side_counts = week_stats.roles_sides.into_iter().counts();
             let heatmap_data = week_stats
                 .heatmap_data
                 .into_iter()
                 .filter_map(|((role, side), data)| {
+                    let count = *role_side_counts.get(&(role, side)).unwrap();
                     if role == Role::None {
                         None
                     } else {
-                        Some((role, side, serde_json::to_string(&data).unwrap()))
+                        Some((role, side, count, serde_json::to_string(&data).unwrap()))
                     }
                 })
-                .sorted_unstable_by(|(role1, side1, _), (role2, side2, _)| {
+                .sorted_unstable_by(|(role1, side1, _, _), (role2, side2, _, _)| {
                     let role1 = role_counts.get(role1).unwrap();
                     let &role2 = role_counts.get(role2).unwrap();
                     // Reverse to get most played at the top
