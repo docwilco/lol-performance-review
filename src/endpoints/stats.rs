@@ -11,7 +11,7 @@ use crate::{
 use actix_web::{get, web, Either, Responder, Result as ActixResult};
 use askama_actix::Template;
 use chrono::{TimeDelta, Utc};
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use log::debug;
 use ordered_float::OrderedFloat;
 use serde::Serialize;
@@ -188,6 +188,7 @@ struct WeekStatsGathering {
     heatmap_data: HeatMapDataGathering,
     roles: Vec<Role>,
     roles_sides: Vec<(Role, Side)>,
+    wards_placed: Vec<(Position, TimeDelta)>,
 }
 
 #[derive(Clone, Debug)]

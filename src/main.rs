@@ -158,6 +158,7 @@ async fn main() -> Result<()> {
         App::new()
             .app_data(data.clone())
             .service(Files::new("/static", "static"))
+            .service(endpoints::riot_txt)
             .route("/", web::get().to(endpoints::index))
             .service(endpoints::stats::page)
             .service(endpoints::fetch::page)

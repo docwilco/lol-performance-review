@@ -146,6 +146,13 @@
                 right: 10px;
                 margin: 0px;
             }
+            .heatmap > img {
+                width: 20px;
+                height: 20px;
+                position: absolute;
+                top: 246px;
+                left: 246px;
+            }
 
             input[type="range"] {
                 -webkit-appearance: none;
@@ -315,6 +322,7 @@
                 <div class="heatmap-container">
                     <h4>{{ role }} on the {{ side }} side ({{ count}}x)</h4>
                     <div id="heatmap_{{ week.number }}_{{role}}_{{side}}" class="heatmap">
+                        <img src="/static/eye.svg">
                         <p id="heatmap_text_{{ week.number }}_{{role}}_{{side}}"></p>
                     </div>
                 </div>
