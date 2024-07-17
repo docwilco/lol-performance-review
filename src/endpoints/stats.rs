@@ -73,6 +73,25 @@ where
     sum / count as f64
 }
 
+const XP_LEVELS: [i32; 17] = [
+    280, 380, 480, 580, 680, 780, 880, 980, 1080, 1180, 1280, 1380, 1480, 1580, 1680, 1780, 1880,
+];
+
+fn level_for_xp(mut xp: i32) -> f64 {
+    let mut level = 1.0;
+    // Because we use the limited array above, the result will never be more than 18.0
+    for &xp_level in &XP_LEVELS {
+        if xp >= xp_level {
+            level += 1.0;
+        } else {
+            level += (xp as f64) / (xp_level as f64);
+            break;
+        }
+        xp -= xp_level;
+    }
+    level
+}
+
 fn frame_stats_at(
     frames: &[json::Frame],
     player: usize,
@@ -86,13 +105,14 @@ fn frame_stats_at(
         - (frame.participant_frames.get(&opponent)?.total_gold);
     let cs_diff = (frame.participant_frames.get(&player)?.minions_killed)
         - (frame.participant_frames.get(&opponent)?.minions_killed);
-    let xp_diff =
-        (frame.participant_frames.get(&player)?.xp) - (frame.participant_frames.get(&opponent)?.xp);
+    let player_level = level_for_xp(frame.participant_frames.get(&player)?.xp);
+    let opponent_level = level_for_xp(frame.participant_frames.get(&opponent)?.xp);
+    let level_diff = player_level - opponent_level;
     Some(StatsAtMinuteGathering {
         cs_per_minute: cpm,
         gold_diff,
         cs_diff,
-        xp_diff,
+        level_diff,
     })
 }
 
@@ -143,7 +163,7 @@ struct StatsAtMinuteGathering {
     cs_per_minute: f64,
     gold_diff: i32,
     cs_diff: i32,
-    xp_diff: i32,
+    level_diff: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -151,7 +171,7 @@ struct StatsAtMinute {
     cs_per_minute: NumberWithOptionalDelta,
     gold_diff: NumberWithOptionalDelta,
     cs_diff: NumberWithOptionalDelta,
-    xp_diff: NumberWithOptionalDelta,
+    level_diff: NumberWithOptionalDelta,
 }
 
 impl StatsAtMinute {
@@ -159,7 +179,7 @@ impl StatsAtMinute {
         self.cs_per_minute.compare_to(&other.cs_per_minute);
         self.gold_diff.compare_to(&other.gold_diff);
         self.cs_diff.compare_to(&other.cs_diff);
-        self.xp_diff.compare_to(&other.xp_diff);
+        self.level_diff.compare_to(&other.level_diff);
     }
 }
 
@@ -315,9 +335,9 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
         .into_iter()
         .map(|(weeks_ago, matches)| {
             let matches = matches.map(|(_, m)| m).collect::<Vec<_>>();
-            let week_stats = matches.iter().fold(
-                WeekStatsGathering::default(),
-                |mut stats, m| {
+            let week_stats = matches
+                .iter()
+                .fold(WeekStatsGathering::default(), |mut stats, m| {
                     let timeline = state.timeline_per_match.get(&m.metadata.match_id).unwrap();
                     let player = get_player(m, &puuid);
                     let player_team = get_team(m, player);
@@ -398,17 +418,20 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                         .frames
                         .iter()
                         .map(|f| {
-                            u32::try_from(f.events
-                                .iter()
-                                .filter(|e| {
-                                    if let json::Event::ChampionKill(kill) = e {
-                                        kill.killer_id == timeline_player_id
-                                            && kill.assisting_participant_ids.is_empty()
-                                    } else {
-                                        false
-                                    }
-                                })
-                                .count()).unwrap()
+                            u32::try_from(
+                                f.events
+                                    .iter()
+                                    .filter(|e| {
+                                        if let json::Event::ChampionKill(kill) = e {
+                                            kill.killer_id == timeline_player_id
+                                                && kill.assisting_participant_ids.is_empty()
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .count(),
+                            )
+                            .unwrap()
                         })
                         .sum::<u32>();
                     stats.solo_kills.push(solo_kills);
@@ -481,8 +504,7 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                         heatmap_data.entry(minute).or_default().push(pos);
                     }
                     stats
-                },
-            );
+                });
 
             let winrate = (100.0 * week_stats.wins as f64
                 / (week_stats.wins + week_stats.losses) as f64)
@@ -505,7 +527,7 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                         median_f64(stats_at.iter().map(|s| &s.cs_per_minute)).into();
                     let gold_diff = median(stats_at.iter().map(|s| s.gold_diff)).into();
                     let cs_diff = median(stats_at.iter().map(|s| s.cs_diff)).into();
-                    let xp_diff = median(stats_at.iter().map(|s| s.xp_diff)).into();
+                    let level_diff = median_f64(stats_at.iter().map(|s| &s.level_diff)).into();
 
                     Some((
                         minute,
@@ -513,7 +535,7 @@ async fn calc_stats(state: State, mut player: Player) -> Result<DisplayData> {
                             cs_per_minute,
                             gold_diff,
                             cs_diff,
-                            xp_diff,
+                            level_diff,
                         },
                     ))
                 })
@@ -592,4 +614,21 @@ pub async fn page(state: State, path: web::Path<Player>) -> ActixResult<impl Res
             .customize()
             .insert_header(("content-type", "text/html")),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use test_case::test_case;
+
+    use super::level_for_xp;
+    #[test_case(0 => 1.0)]
+    #[test_case(140 => 1.5)]
+    #[test_case(280 => 2.0)]
+    #[test_case(660 => 3.0)]
+    #[test_case(900 => 3.5)]
+    #[test_case(1720 => 5.0)]
+    #[test_case(999999 => 18.0)]
+    fn test_level_for_xp(xp: i32) -> f64 {
+        level_for_xp(xp)
+    }
 }

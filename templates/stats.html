@@ -301,7 +301,7 @@
                             <th>CS/min</th>
                             <th>Gold diff</th>
                             <th>CS diff</th>
-                            <th>XP diff</th>
+                            <th>Level diff</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -311,7 +311,7 @@
                             <td>{% call float_with_diff(minute_stats.cs_per_minute) %}</td>
                             <td>{% call float_with_diff(minute_stats.gold_diff) %}</td>
                             <td>{% call float_with_diff(minute_stats.cs_diff) %}</td>
-                            <td>{% call float_with_diff(minute_stats.xp_diff) %}</td>
+                            <td>{% call float_with_diff(minute_stats.level_diff) %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
