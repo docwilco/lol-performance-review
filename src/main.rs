@@ -2,13 +2,14 @@
 #![allow(clippy::cast_lossless)]
 
 use actix_files::Files;
-use actix_web::{error::ErrorInternalServerError, web, App, HttpServer};
+use actix_web::{error::ErrorInternalServerError, middleware::Logger, web, App, HttpServer};
 use dashmap::DashMap;
 use serde::Deserialize;
 use std::{
     collections::HashMap,
     env,
-    fmt::{self, Display, Formatter}, sync::Arc,
+    fmt::{self, Display, Formatter},
+    sync::Arc,
 };
 
 mod fetcher;
@@ -16,7 +17,7 @@ use fetcher::StatusBroadcaster;
 mod endpoints;
 mod ratelimiter;
 mod riot_api;
-use riot_api::json;
+use riot_api::json::{self, Role};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T> = std::result::Result<T, Error>;
@@ -109,6 +110,43 @@ impl Player {
     }
 }
 
+#[derive(Deserialize)]
+struct PlayerRoleChamp {
+    region: LeagueRegion,
+    game_name: String,
+    tag_line: String,
+    champion: Option<String>,
+    role: Option<Role>,
+}
+
+fn normalize_champion_name(champion_name: &str) -> String {
+    // Lowercase and remove all non-A-Z characters
+    champion_name
+        .chars()
+        .filter_map(|c| {
+            if c.is_ascii_alphabetic() {
+                Some(c.to_lowercase())
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect()
+}
+
+impl From<PlayerRoleChamp> for (Player, Option<Role>, Option<String>) {
+    fn from(prc: PlayerRoleChamp) -> Self {
+        let player = Player {
+            region: prc.region,
+            game_name: prc.game_name,
+            tag_line: prc.tag_line,
+        }
+        .normalized();
+        let champion = prc.champion.as_deref().map(normalize_champion_name);
+        (player, prc.role, champion)
+    }
+}
+
 type FetchStatusPerPlayer = Arc<DashMap<Player, StatusBroadcaster>>;
 struct InnerState {
     client: ratelimiter::ApiClient,
@@ -163,6 +201,7 @@ async fn main() -> Result<()> {
             .service(endpoints::stats::page)
             .service(endpoints::fetch::page)
             .service(endpoints::fetch::events)
+            .wrap(Logger::default())
     });
     server.bind(("127.0.0.1", 8080))?.run().await?;
 

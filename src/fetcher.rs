@@ -8,7 +8,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{riot_api::update_match_history, Player, Result, State};
+use crate::{riot_api::{json::Role, update_match_history}, Player, Result, State};
 
 #[derive(Debug, Clone, Serialize)]
 pub enum FetchStatus {
@@ -82,11 +82,16 @@ pub enum RedirectOrContinue {
     Continue,
 }
 
-pub async fn check_or_start_fetching(state: State, player: &Player) -> Result<RedirectOrContinue> {
+pub async fn check_or_start_fetching(
+    state: State,
+    player: &Player,
+    role: Option<Role>,
+    champion: Option<&str>,
+) -> Result<RedirectOrContinue> {
     let mut broadcaster_ref = state
         .fetch_status_per_player
         .entry(player.clone())
-        .or_insert(StatusBroadcaster::new());
+        .or_insert_with(StatusBroadcaster::new);
     let broadcaster = &mut *broadcaster_ref;
     if matches!(
         broadcaster.last_status,
@@ -96,35 +101,35 @@ pub async fn check_or_start_fetching(state: State, player: &Player) -> Result<Re
         let state = state.clone();
         let from = Utc::now() - chrono::Duration::days(28);
         tokio::spawn(async move {
-            match update_match_history(&state, &player_clone, from).await {
-                Ok(()) => {
-                    state
-                        .fetch_status_per_player
-                        .get_mut(&player_clone)
-                        .unwrap()
-                        .broadcast(FetchStatus::Done)
-                        .await;
-                }
-                Err(e) => {
-                    state
-                        .fetch_status_per_player
-                        .get_mut(&player_clone)
-                        .unwrap()
-                        .broadcast(FetchStatus::Error(e.to_string()))
-                        .await;
-                }
-            }
+            let status = match update_match_history(&state, &player_clone, from).await {
+                Ok(()) => FetchStatus::Done,
+                Err(e) => FetchStatus::Error(e.to_string()),
+            };
+            state
+                .fetch_status_per_player
+                .get_mut(&player_clone)
+                .unwrap()
+                .broadcast(status)
+                .await;
         });
         broadcaster.last_status = FetchStatus::Fetching { percent_done: 0 };
     }
     match broadcaster.last_status {
         FetchStatus::Done => Ok(RedirectOrContinue::Continue),
         FetchStatus::Starting => unreachable!("Starting status should have been changed"),
-        _ => Ok(RedirectOrContinue::Redirect(Redirect::to(format!(
-            "/fetch/{region}/{game_name}/{tag_line}",
-            region = player.region,
-            game_name = player.game_name,
-            tag_line = player.tag_line
-        )))),
+        _ => {
+            let mut url = format!(
+                "/fetch/{region}/{game_name}/{tag_line}",
+                region = player.region,
+                game_name = player.game_name,
+                tag_line = player.tag_line
+            );
+            if let Some(champion) = champion {
+                url.push('/');
+                url.push_str(&role.unwrap().to_string().to_lowercase());
+                url.push('/');
+                url.push_str(champion);
+            }
+            Ok(RedirectOrContinue::Redirect(Redirect::to(url)))},
     }
 }

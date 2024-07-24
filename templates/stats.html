@@ -22,11 +22,20 @@
 {% macro percent_float_with_diff(number) %}
 {{ "{:.1}"|format(number) }}%{% call float_diff(number) %}
 {% endmacro %}
+
+{% macro title(player, champion) %}
+{% if let Some(champion) = champion %}
+{{ champion|escape }} stats
+{% else %}
+Stats
+{% endif %}
+for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}</title>
+{% endmacro %}
+
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Stats for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}</title>
-        <link rel="stylesheet" type="text/css" href="css/stats.css">
+        <title>{% call title(player, champion) %}</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -100,13 +109,20 @@
                 width: 48%;
                 border-collapse: collapse;
             }
-            .stats-tables td, .stats-tables th {
+
+            .champs-table table {
+                width: 100%;
+                margin-top: 20px;
+                border-collapse: collapse;
+            }
+
+            td, th {
                 border: 1px solid #ddd;
                 padding: 8px;
                 text-align: left;
             }
 
-            .stats-tables th {
+            th {
                 background-color: #f2f2f2;
                 font-weight: bold;
             }
@@ -234,7 +250,7 @@
         <script src="/static/heatmap.min.js"></script>
     </head>
     <body>
-        <h1>Stats for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}</h1>
+        <h1>{% call title(player, champion) %}</h1>
         <div class="tab">
             {% for week in weeks %}
             <button class="tablinks" onclick="openTab('Week{{ week.number }}')" id="Week{{ week.number }}link">Week {{ week.number }}</button>
@@ -242,7 +258,7 @@
         </div>
         {% for week in weeks %}
         <div id="Week{{ week.number }}" class="tabcontent">
-            <h3>Week {{ week.number }}</h3>
+            <h2>Week {{ week.number }}</h2>
             <div class="stats-tables">
                 <table>
                     <tr>
@@ -260,6 +276,10 @@
                     <tr>
                         <td>Win rate:</td>
                         <td>{% call percent_float_with_diff(week.winrate) %}</td>
+                    </tr>
+                    <tr>
+                        <td>KDA:</td>
+                        <td>{% call float_with_diff(week.kills) %} / {% call float_with_diff(week.deaths) %} / {% call float_with_diff(week.assists) %} ({% call float_with_diff(week.kda) %})</td>
                     </tr>
                     <tr>
                         <td>CS/min</td>
@@ -316,6 +336,35 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+            <div class="champs-table">
+                {% if champion.is_none() %}
+                {% for (role, per_champ) in week.per_role_per_champ %}
+                <h3>{{ role }}</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Champion</th>
+                            <th>Games</th>
+                            <th>Win rate</th>
+                            <th>KDA</th>
+                            <th>CS/min</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for (champion, normalized_champion, champion_stats) in per_champ %}
+                        <tr>
+                            <td><a href="/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/{{ role.lowercase() }}/{{ normalized_champion }}">{{ champion }}</a></td>
+                            <td>{{ champion_stats.games_played }}</td>
+                            <td>{% call percent_float_with_diff(champion_stats.winrate) %}</td>
+                            <td>{% call float_with_diff(champion_stats.kills) %} / {% call float_with_diff(champion_stats.deaths) %} / {% call float_with_diff(champion_stats.assists) %} ( {% call float_with_diff(champion_stats.kda) %} )</td>
+                            <td>{% call float_with_diff(champion_stats.cs_per_minute) %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endfor %}
+                {% endif %}                    
             </div>
             <div class="all-heatmaps-container">
                 {% for (role, side, count, data) in week.heatmap_data %}

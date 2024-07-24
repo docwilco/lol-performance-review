@@ -112,16 +112,26 @@ pub struct PerkStyle {
 #[derive(
     Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize, strum::EnumIter, strum::Display,
 )]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
+    #[serde(alias = "TOP")]
     Top,
+    #[serde(alias = "JUNGLE")]
     Jungle,
+    #[serde(alias = "MIDDLE")]
     Middle,
+    #[serde(alias = "BOTTOM")]
     Bottom,
-    #[serde(rename = "UTILITY")]
+    #[serde(alias = "UTILITY")]
     Support,
-    #[serde(rename = "")]
+    #[serde(alias = "")]
     None,
+}
+
+impl Role {
+    pub fn lowercase(&self) -> String {
+        self.to_string().to_lowercase()
+    }
 }
 
 #[allow(clippy::struct_excessive_bools)]

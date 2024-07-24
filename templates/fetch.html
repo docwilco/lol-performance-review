@@ -58,7 +58,9 @@
         var last_status = '';
         var total_seconds_left = 0;
         if (typeof(EventSource) !== "undefined") {
-            const source = new EventSource("/fetch/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}/events");
+            let url = window.location.href;
+            url = url.replace('/fetch/', '/fetch-events/');
+            const source = new EventSource(url);
             source.onmessage = function(event) {
                 let data = JSON.parse(event.data);
                 const progressText = document.getElementById('progress-text');
@@ -66,7 +68,9 @@
                     last_status = 'Done';
                     source.close();
                     progressText.textContent = "Done!";
-                    window.location.replace('/stats/{{ player.region }}/{{ player.game_name }}/{{ player.tag_line }}');
+                    let url = window.location.href;
+                    url = url.replace('/fetch/', '/stats/');
+                    window.location.replace(url);
                     return;
                 }
                 if (data.Error) {
