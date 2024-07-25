@@ -1,6 +1,3 @@
-#![allow(clippy::cast_precision_loss)]
-#![allow(clippy::cast_lossless)]
-
 use actix_files::Files;
 use actix_web::{error::ErrorInternalServerError, middleware::Logger, web, App, HttpServer};
 use dashmap::DashMap;
@@ -165,7 +162,6 @@ where
     ErrorInternalServerError(err)
 }
 
-#[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv()?;

@@ -129,7 +129,7 @@ pub enum Role {
 }
 
 impl Role {
-    pub fn lowercase(&self) -> String {
+    pub fn lowercase(self) -> String {
         self.to_string().to_lowercase()
     }
 }
@@ -412,7 +412,7 @@ impl Point {
         // X and Y should be 16000 at most, and 2*(16K^2) = 512M, which fits in i32
         let dx = self.x - other.x;
         let dy = self.y - other.y;
-        ((dx * dx + dy * dy) as f64).sqrt()
+        f64::from(dx * dx + dy * dy).sqrt()
     }
 }
 

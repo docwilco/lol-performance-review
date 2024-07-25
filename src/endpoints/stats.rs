@@ -24,54 +24,34 @@ use std::{
 const MINUTES_AT: [u32; 4] = [5, 10, 15, 20];
 include!(concat!(env!("OUT_DIR"), "/codegen-champ-names.rs"));
 
-fn median_f64<'a>(values: impl IntoIterator<Item = &'a f64>) -> f64 {
+fn median<'a, T>(values: impl IntoIterator<Item = &'a T>) -> f64
+where
+    T: Copy + Into<f64> + 'a,
+{
     let mut values = values
         .into_iter()
-        .copied()
-        .map(OrderedFloat::from)
+        .map(|&value| OrderedFloat::from(value.into()))
         .collect::<Vec<_>>();
     values.sort_unstable();
     let mid = values.len() / 2;
-    let median = if values.len() % 2 == 0 {
-        (values[mid - 1] + values[mid]) / 2.0
-    } else {
-        values[values.len() / 2]
-    };
-    median.into_inner()
-}
-
-fn median<T>(values: impl IntoIterator<Item = T>) -> f64
-where
-    T: Copy + Into<f64> + Ord,
-{
-    let mut values = values.into_iter().collect::<Vec<_>>();
-    values.sort_unstable();
-    let mid = values.len() / 2;
     if values.len() % 2 == 0 {
-        (values[mid - 1].into() + values[mid].into()) / 2.0
+        (values[mid - 1].into_inner() + values[mid].into_inner()) / 2.0
     } else {
-        values[mid].into()
+        values[mid].into_inner()
     }
 }
 
-fn _average_f64<'a>(values: impl IntoIterator<Item = &'a f64>) -> f64 {
-    let (sum, count) = values
-        .into_iter()
-        .fold((0.0, 0), |(sum, count), value| (sum + *value, count + 1));
-    sum / count as f64
-}
-
-fn average<T>(values: impl IntoIterator<Item = T>) -> f64
+fn average<'a, T>(values: impl IntoIterator<Item = &'a T>) -> f64
 where
-    T: Copy + Into<f64>,
+    T: Copy + Into<f64> + 'a,
 {
     let mut sum = 0.0;
     let mut count = 0;
     for value in values {
-        sum += Into::<f64>::into(value);
+        sum += Into::<f64>::into(*value);
         count += 1;
     }
-    sum / count as f64
+    sum / f64::from(count)
 }
 
 const XP_LEVELS: [i32; 17] = [
@@ -85,7 +65,7 @@ fn level_for_xp(mut xp: i32) -> f64 {
         if xp >= xp_level {
             level += 1.0;
         } else {
-            level += (xp as f64) / (xp_level as f64);
+            level += f64::from(xp) / f64::from(xp_level);
             break;
         }
         xp -= xp_level;
@@ -100,8 +80,8 @@ fn frame_stats_at(
     timestamp: TimeDelta,
 ) -> Option<StatsAtMinuteGathering> {
     let frame = frames.iter().find(|f| f.timestamp >= timestamp)?;
-    let cpm = frame.participant_frames.get(&player)?.minions_killed as f64
-        / timestamp.num_minutes() as f64;
+    let cpm = f64::from(frame.participant_frames.get(&player)?.minions_killed)
+        / f64::from(i32::try_from(timestamp.num_minutes()).unwrap());
     let gold_diff = (frame.participant_frames.get(&player)?.total_gold)
         - (frame.participant_frames.get(&opponent)?.total_gold);
     let cs_diff = (frame.participant_frames.get(&player)?.minions_killed)
@@ -235,7 +215,7 @@ impl From<f64> for NumberWithOptionalDelta {
 }
 
 impl NumberWithOptionalDelta {
-    fn from_up_is_bad(number: f64) -> Self {
+    fn up_is_bad_from(number: f64) -> Self {
         let number = (number * 10.0).round() / 10.0;
         Self {
             number,
@@ -252,11 +232,12 @@ impl NumberWithOptionalDelta {
             if !self.up_is_good {
                 factor = -factor;
             }
-            #[allow(clippy::cast_possible_truncation)]
-            ((delta * factor).round() as i64).cmp(&0)
-        } else {
-            Ordering::Equal
+            let truncated = (delta * factor).round();
+            if truncated.abs() >= 1.0 {
+                return truncated.partial_cmp(&0.0).unwrap();
+            }
         }
+        Ordering::Equal
     }
 }
 
@@ -287,6 +268,7 @@ struct WeekStats {
     solo_deaths: NumberWithOptionalDelta,
     at_minute_stats: Vec<(u32, StatsAtMinute)>,
     heatmap_data: HeatMapData,
+    #[allow(clippy::type_complexity)]
     per_role_per_champ: Vec<(Role, Vec<(String, String, WeekStats)>)>,
 }
 
@@ -334,8 +316,8 @@ fn team_share<'a>(
     team: impl IntoIterator<Item = &'a &'a json::Participant>,
     field: impl Fn(&'a json::Participant) -> i32,
 ) -> f64 {
-    let team_field = team.into_iter().map(|p| field(p) as f64).sum::<f64>();
-    100.0 * (field(player) as f64) / team_field
+    let team_field = team.into_iter().map(|p| f64::from(field(p))).sum::<f64>();
+    100.0 * f64::from(field(player)) / team_field
 }
 
 fn solo_kills(timeline: &json::Timeline, player_id: usize) -> u32 {
@@ -449,13 +431,13 @@ fn gather_stats<'a>(
             stats.kills.push(player.kills);
             stats.deaths.push(player.deaths);
             stats.assists.push(player.assists);
-            let deaths = (player.deaths as f64).max(1.0);
+            let deaths = f64::from(player.deaths).max(1.0);
             stats
                 .kda
-                .push((player.kills as f64 + player.assists as f64) / deaths);
+                .push((f64::from(player.kills) + f64::from(player.assists)) / deaths);
 
-            let cs_per_minute =
-                player.total_minions_killed as f64 / m.info.game_duration.num_minutes() as f64;
+            let cs_per_minute = f64::from(player.total_minions_killed)
+                / f64::from(i32::try_from(m.info.game_duration.num_minutes()).unwrap());
             stats.cs_per_minute.push(cs_per_minute);
 
             stats
@@ -476,8 +458,8 @@ fn gather_stats<'a>(
                 .vision_share
                 .push(team_share(player, &team, |p| p.vision_score));
 
-            let vision_score_per_minute =
-                player.vision_score as f64 / m.info.game_duration.num_minutes() as f64;
+            let vision_score_per_minute = f64::from(player.vision_score)
+                / f64::from(i32::try_from(m.info.game_duration.num_minutes()).unwrap());
             stats.vision_score_per_minute.push(vision_score_per_minute);
 
             let timeline_player_id = timeline_get_player_id(&timeline, puuid);
@@ -488,7 +470,7 @@ fn gather_stats<'a>(
                     &timeline.info.frames,
                     timeline_player_id,
                     timeline_opponent_id,
-                    TimeDelta::minutes(minute as i64),
+                    TimeDelta::minutes(i64::from(minute)),
                 );
                 if let Some(stats_at) = stats_at {
                     stats.stats_at.entry(minute).or_default().push(stats_at);
@@ -533,10 +515,10 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         .iter()
         .filter_map(|&minute| {
             let stats_at = gathered.stats_at.get(&minute)?;
-            let cs_per_minute = median_f64(stats_at.iter().map(|s| &s.cs_per_minute)).into();
-            let gold_diff = median(stats_at.iter().map(|s| s.gold_diff)).into();
-            let cs_diff = median(stats_at.iter().map(|s| s.cs_diff)).into();
-            let level_diff = median_f64(stats_at.iter().map(|s| &s.level_diff)).into();
+            let cs_per_minute = median(stats_at.iter().map(|s| &s.cs_per_minute)).into();
+            let gold_diff = median(stats_at.iter().map(|s| &s.gold_diff)).into();
+            let cs_diff = median(stats_at.iter().map(|s| &s.cs_diff)).into();
+            let level_diff = median(stats_at.iter().map(|s| &s.level_diff)).into();
 
             Some((
                 minute,
@@ -578,28 +560,28 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         number: week_number,
         wins: gathered.wins,
         losses: gathered.losses,
-        winrate: (100.0 * gathered.wins as f64 / (gathered.wins + gathered.losses) as f64).into(),
+        winrate: (100.0 * f64::from(gathered.wins) / f64::from(gathered.wins + gathered.losses))
+            .into(),
         games_played: gathered.wins + gathered.losses,
-        kills: average(gathered.kills.iter().copied()).into(),
-        deaths: NumberWithOptionalDelta::from_up_is_bad(average(gathered.deaths.iter().copied())),
-        assists: average(gathered.assists.iter().copied()).into(),
-        kda: _average_f64(&gathered.kda).into(),
-        cs_per_minute: median_f64(&gathered.cs_per_minute).into(),
-        gold_share: median_f64(&gathered.gold_share).into(),
-        champion_damage_share: median_f64(&gathered.champion_damage_share).into(),
-        objective_damage_share: median_f64(&gathered.objective_damage_share).into(),
-        vision_share: median_f64(&gathered.vision_share).into(),
-        vision_score_per_minute: median_f64(&gathered.vision_score_per_minute).into(),
-        solo_kills: average(gathered.solo_kills.iter().copied()).into(),
-        solo_deaths: NumberWithOptionalDelta::from_up_is_bad(average(
-            gathered.solo_deaths.iter().copied(),
-        )),
+        kills: average(&gathered.kills).into(),
+        deaths: NumberWithOptionalDelta::up_is_bad_from(average(&gathered.deaths)),
+        assists: average(&gathered.assists).into(),
+        kda: average(&gathered.kda).into(),
+        cs_per_minute: median(&gathered.cs_per_minute).into(),
+        gold_share: median(&gathered.gold_share).into(),
+        champion_damage_share: median(&gathered.champion_damage_share).into(),
+        objective_damage_share: median(&gathered.objective_damage_share).into(),
+        vision_share: median(&gathered.vision_share).into(),
+        vision_score_per_minute: median(&gathered.vision_score_per_minute).into(),
+        solo_kills: average(&gathered.solo_kills).into(),
+        solo_deaths: NumberWithOptionalDelta::up_is_bad_from(average(&gathered.solo_deaths)),
         at_minute_stats,
         heatmap_data,
         per_role_per_champ: vec![],
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn matches_by_role_lane<'a>(
     matches: impl IntoIterator<Item = &'a &'a json::Match>,
     puuid: &'a str,
@@ -619,21 +601,20 @@ fn matches_by_role_lane<'a>(
         .map(|(role, champ_map)| {
             let champ_map = champ_map
                 .into_iter()
-                .sorted_unstable_by_key(|(_, matches)| {
-                    #[allow(clippy::cast_possible_truncation)]
-                    #[allow(clippy::cast_possible_wrap)]
-                    -(matches.len() as i32)
-                })
+                // This sorts by the number of matches played with the champion, highest first
+                .sorted_unstable_by_key(|(_, matches)| -(i32::try_from(matches.len()).unwrap()))
                 .collect::<Vec<_>>();
             (role, champ_map)
         })
+        // This sorts by the number of matches played in the role, highest first
         .sorted_by_cached_key(|(_, champ_map)| {
-            #[allow(clippy::cast_possible_truncation)]
-            #[allow(clippy::cast_possible_wrap)]
-            -(champ_map
-                .iter()
-                .map(|(_, matches)| matches.len())
-                .sum::<usize>() as i32)
+            -(i32::try_from(
+                champ_map
+                    .iter()
+                    .map(|(_, matches)| matches.len())
+                    .sum::<usize>(),
+            )
+            .unwrap())
         })
         .collect()
 }
@@ -648,7 +629,6 @@ struct DisplayData {
 
 const NUM_WEEKS: i64 = 4;
 
-#[allow(clippy::too_many_lines)]
 async fn calc_stats(
     state: State,
     mut player: Player,
@@ -779,5 +759,34 @@ mod tests {
     #[test_case(999_999, 18.0)]
     fn test_level_for_xp(xp: i32, level: f64) {
         assert!((level_for_xp(xp) - level).abs() < 0.01);
+    }
+
+    #[test_case(&[1_u32, 2, 3, 4, 5], 3.0)]
+    #[test_case(&[1_i32, 2, 3, 4, 5], 3.0)]
+    #[test_case(&[1.0, 2.0, 3.0, 4.0, 5.0], 3.0)]
+    #[test_case(&[5_u32, 4, 1, 3, 2], 3.0)]
+    #[test_case(&[0, u32::MAX], 2_147_483_647.5)]
+    #[test_case(&[0, u32::MAX, u32::MAX], 2_863_311_530.0)]
+    #[test_case(&[u32::MAX, 0, u32::MAX], 2_863_311_530.0)]
+    #[test_case(&[0.0, 1.0, 2.0, 3.0, 4.0], 2.0)]
+    fn test_average<'a, T>(values: impl IntoIterator<Item = &'a T>, expected: f64)
+    where
+        T: Copy + Into<f64> + 'a,
+    {
+        let average = super::average(values);
+        assert!((average - expected).abs() < 0.01);
+    }
+
+    #[test_case(&[1.0, 2.0, 3.0, 4.0, 5.0], 3.0)]
+    #[test_case(&[0.0, f64::MAX], f64::MAX / 2.0)]
+    #[test_case(&[0.0, f64::MAX, f64::MAX], f64::MAX)]
+    #[test_case(&[0, 0, 0, 0, 0, 1], 0.0)]
+    #[test_case(&[0, 0, 0, 0, 0, 0, 1], 0.0)]
+    fn test_median<'a, T>(values: impl IntoIterator<Item = &'a T>, expected: f64)
+    where
+        T: Copy + Into<f64> + 'a,
+    {
+        let median = super::median(values);
+        assert!((median - expected).abs() < 0.01);
     }
 }
