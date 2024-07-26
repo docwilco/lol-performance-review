@@ -149,6 +149,24 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 border-color: #aaa;
             }
 
+            .heatmap-controller button {
+                background-color: #3264fe; /* Blue background */
+                color: white; /* White text */
+                border: none; /* Remove default border */
+                border-radius: 16px; /* Rounded ends */
+                padding: 5px 10px; /* Add some padding */
+                text-align: center; /* Center the text */
+                text-decoration: none; /* Remove underline from text */
+                display: inline-block; /* Make the button inline-block */
+                font-size: 14px; /* Set font size */
+                cursor: pointer; /* Change cursor to pointer on hover */
+                line-height: 1;
+            }
+
+            .heatmap-controller button:hover {
+                background-color: #2548b0; /* Darker blue on hover */
+            }                
+
             .heatmap {
                 width: 512px;
                 height: 512px;
@@ -430,6 +448,20 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             oninput="animationCheckboxInput()"
         >
         <label for="animation-checkbox">Animate</label>
+        <button onclick="shortcutSettings(1, 5, true)">1-5 Animated</button>
+        <button onclick="shortcutSettings(6, 15, false)">6-15 Static</button>
+        <button onclick="shortcutSettings(6, 20, false)">6-20 Static</button>
+        <button onclick="shortcutSettings(15, 60, false)">15-60 Static</button>
+        <script>
+            function shortcutSettings(start, end, animate) {
+                lowerSlider.value = start;
+                slideLower();
+                upperSlider.value = end;
+                slideUpper();
+                animationCheckbox.checked = animate;
+                animationCheckboxInput();
+            }
+        </script>
     </div>
     <div class="bottom-filler"></div>
     <script>
@@ -503,28 +535,47 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             var startNumber = document.getElementById('start-number');
             var endNumber = document.getElementById('end-number');
             let animationCheckbox = document.getElementById('animation-checkbox');
-            let minGap = 0;
-            let sliderMinValue = 1;
-            let sliderMaxValue = 60;
+            const minGap = 0;
+            const sliderMinValue = 1;
+            const sliderMaxValue = 60;
 
             function slideLower() {
-                if (parseInt(upperSlider.value) - parseInt(lowerSlider.value) <= minGap) {
-                    lowerSlider.value = parseInt(upperSlider.value) - minGap;
+                const lowerMax = sliderMaxValue - minGap;
+                let lowerValue = parseInt(lowerSlider.value);
+                let upperValue = parseInt(upperSlider.value);
+                // This way we can't move lower higher than we should be able to
+                if (lowerValue > lowerMax) {
+                    lowerSlider.value = lowerMax;
+                    lowerValue = lowerMax;
+                } 
+                // We always adjust the other slider than the one we change, so
+                // that we don't get weird times where we can't adjust a value
+                // because the other slider is in the way.
+                if (upperValue - lowerValue < minGap) {
+                    upperSlider.value = lowerValue + minGap;
+                    slideUpper();
                 }
-                let start = parseInt(lowerSlider.value);
-                animationSettings.start = start;
-                startNumber.value = start;
+                animationSettings.start = lowerValue;
+                startNumber.value = lowerValue;
                 // This will cause a rerender of the heatmap
                 animationSettings.animating = true;
                 fillColor();
             }
             function slideUpper() {
-                if (parseInt(upperSlider.value) - parseInt(lowerSlider.value) <= minGap) {
-                    upperSlider.value = parseInt(lowerSlider.value) + minGap;
+                const upperMin = sliderMinValue + minGap;
+                let lowerValue = parseInt(lowerSlider.value);
+                let upperValue = parseInt(upperSlider.value);
+                // Same as in slideLower
+                if (upperValue < upperMin) {
+                    upperSlider.value = upperMin;
+                    upperValue = upperMin;
                 }
-                let end = parseInt(upperSlider.value);
-                animationSettings.end = end;
-                endNumber.value = end;
+                if (upperValue - lowerValue < minGap) {
+                    lowerSlider.value = upperValue - minGap;
+                    slideLower();
+                }
+                animationSettings.end = upperValue;
+                endNumber.value = upperValue;
                 // This will cause a rerender of the heatmap
                 animationSettings.animating = true;
                 fillColor();
@@ -560,8 +611,8 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                     seed++;
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
-            }
 
+            }
             function animateHeatmap(seed) {
                 let start = animationSettings.start;
                 let end = animationSettings.end;
@@ -573,7 +624,6 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             data: heatmapData[id][minute],
                             max: 15
                         }
-                        console.log(data);
                         heatmapInstances[id].setData(data);
                         heatmapTexts[id].innerText = `${minute}:00`;
                     }

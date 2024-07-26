@@ -657,7 +657,6 @@ async fn calc_stats(
                     .iter()
                     .any(|p| p.puuid == puuid && p.team_position == role)
             });
-            debug!("Champ match: {champ_match} Role match: {role_match}");
             champ_match
                 && role_match
                 && m.info.game_mode == "CLASSIC"
