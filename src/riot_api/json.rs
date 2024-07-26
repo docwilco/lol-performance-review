@@ -52,29 +52,29 @@ pub struct Objective {
 #[serde(rename_all = "camelCase")]
 pub struct Missions {
     #[serde(rename = "playerScore0")]
-    pub player0: i32,
+    pub player0: Option<i32>,
     #[serde(rename = "playerScore1")]
-    pub player1: i32,
+    pub player1: Option<i32>,
     #[serde(rename = "playerScore2")]
-    pub player2: i32,
+    pub player2: Option<i32>,
     #[serde(rename = "playerScore3")]
-    pub player3: i32,
+    pub player3: Option<i32>,
     #[serde(rename = "playerScore4")]
-    pub player4: i32,
+    pub player4: Option<i32>,
     #[serde(rename = "playerScore5")]
-    pub player5: i32,
+    pub player5: Option<i32>,
     #[serde(rename = "playerScore6")]
-    pub player6: i32,
+    pub player6: Option<i32>,
     #[serde(rename = "playerScore7")]
-    pub player7: i32,
+    pub player7: Option<i32>,
     #[serde(rename = "playerScore8")]
-    pub player8: i32,
+    pub player8: Option<i32>,
     #[serde(rename = "playerScore9")]
-    pub player9: i32,
+    pub player9: Option<i32>,
     #[serde(rename = "playerScore10")]
-    pub player10: i32,
+    pub player10: Option<i32>,
     #[serde(rename = "playerScore11")]
-    pub player11: i32,
+    pub player11: Option<i32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -271,7 +271,7 @@ pub struct Participant {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct InfoShadow {
-    end_of_game_result: String,
+    end_of_game_result: Option<String>,
     #[serde_as(as = "TimestampMilliSeconds<i64>")]
     pub game_creation: DateTime<Utc>,
     game_duration: i64,
@@ -294,7 +294,7 @@ struct InfoShadow {
 
 #[derive(Clone, Debug)]
 pub struct Info {
-    pub end_of_game_result: String,
+    pub end_of_game_result: Option<String>,
     pub game_creation: DateTime<Utc>,
     pub game_duration: TimeDelta,
     pub game_end_timestamp: DateTime<Utc>,
