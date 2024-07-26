@@ -37,15 +37,21 @@
             <input type="text" id="tagLine">
             <br>
             <br>
-            <button onclick="combineInputs()">Go</button>
+            <button id="go-button">Go</button>
         </form>
         <script>
-        document.getElementById('player-selection').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
+            let goButton = document.getElementById('go-button');
+            goButton.addEventListener('click', function(event) {
                 event.preventDefault();
                 combineInputs();
-            }
-        });
+            }); 
+            let form = document.getElementById('player-selection'); 
+            goButton.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    combineInputs();
+                }
+            });
         </script>
     </body>
 </html>
