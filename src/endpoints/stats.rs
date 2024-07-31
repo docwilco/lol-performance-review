@@ -860,9 +860,12 @@ async fn calc_stats(
             if champion.is_none() {
                 display_stats.per_role_per_champ = matches_by_role_lane(&matches, &puuid)
                     .into_iter()
-                    .map(|(role, champ_map)| {
-                        (
-                            role,
+                    .filter_map(|(by_role, champ_map)| {
+                        if role.is_some() && role != Some(by_role) {
+                            return None;
+                        }
+                        Some((
+                            by_role,
                             champ_map
                                 .into_iter()
                                 .map(|(champ, champ_matches)| {
@@ -874,7 +877,7 @@ async fn calc_stats(
                                     (champ, normalized_champ, role_champ_display_stats)
                                 })
                                 .collect(),
-                        )
+                        ))
                     })
                     .collect();
             }
@@ -898,9 +901,11 @@ async fn calc_stats(
 
 #[routes]
 #[get("/stats/{region}/{game_name}/{tag_line}")]
+#[get("/stats/{region}/{game_name}/{tag_line}/{role}")]
 #[get("/stats/{region}/{game_name}/{tag_line}/{role}/{champion}")]
 pub async fn page(state: State, path: web::Path<PlayerRoleChamp>) -> ActixResult<impl Responder> {
     let (player, role, champion) = path.into_inner().into();
+    debug!("Getting stats for {player} in {role:?} as {champion:?}");
     if let RedirectOrContinue::Redirect(redirect) =
         check_or_start_fetching(state.clone(), &player, role, champion.as_deref())
             .await
