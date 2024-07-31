@@ -136,7 +136,11 @@ impl ApiClient {
             while retry_after > 0 {
                 let broadcaster = self.fetch_status_per_player.get_mut(player);
                 if let Some(mut broadcaster) = broadcaster {
-                    broadcaster.broadcast(crate::fetcher::FetchStatus::Waiting { seconds_left: retry_after }).await;
+                    broadcaster
+                        .broadcast(crate::fetcher::FetchStatus::Waiting {
+                            seconds_left: retry_after,
+                        })
+                        .await;
                 }
                 interval.tick().await;
                 retry_after -= 1;

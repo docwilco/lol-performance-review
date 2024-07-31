@@ -18,11 +18,12 @@ use serde::Serialize;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Display, Formatter, Write},
 };
 
 const MINUTES_AT: [u32; 4] = [5, 10, 15, 20];
 include!(concat!(env!("OUT_DIR"), "/codegen-champ-names.rs"));
+include!(concat!(env!("OUT_DIR"), "/codegen-item-ranks.rs"));
 
 fn median<'a, T>(values: impl IntoIterator<Item = &'a T>) -> f64
 where
@@ -52,6 +53,20 @@ where
         count += 1;
     }
     sum / f64::from(count)
+}
+
+fn median_td<'a>(values: impl IntoIterator<Item = &'a TimeDelta>) -> TimeDelta {
+    let mut values = values
+        .into_iter()
+        .map(TimeDelta::num_seconds)
+        .collect::<Vec<_>>();
+    values.sort_unstable();
+    let mid = values.len() / 2;
+    if values.len() % 2 == 0 {
+        TimeDelta::seconds((values[mid - 1] + values[mid]) / 2)
+    } else {
+        TimeDelta::seconds(values[mid])
+    }
 }
 
 const XP_LEVELS: [i32; 17] = [
@@ -194,6 +209,7 @@ struct WeekStatsGathering {
     roles: Vec<Role>,
     roles_sides: Vec<(Role, Side)>,
     _wards_placed: Vec<(Position, TimeDelta)>,
+    legendary_item_buy_times: Vec<Vec<TimeDelta>>,
 }
 
 #[derive(Clone, Debug)]
@@ -248,6 +264,79 @@ impl Display for NumberWithOptionalDelta {
 }
 
 #[derive(Clone, Debug)]
+struct DisplayTimeDelta {
+    time: TimeDelta,
+    delta: Option<TimeDelta>,
+    down_is_good: bool,
+}
+
+impl From<TimeDelta> for DisplayTimeDelta {
+    fn from(time: TimeDelta) -> Self {
+        Self {
+            time,
+            delta: None,
+            down_is_good: true,
+        }
+    }
+}
+
+impl DisplayTimeDelta {
+    fn compare_to(&mut self, other: &Self) {
+        self.delta = Some(self.time - other.time);
+    }
+    fn has_visible_diff(&self) -> Ordering {
+        if let Some(mut delta) = self.delta {
+            if self.down_is_good {
+                delta = -delta;
+            }
+            if delta.num_seconds().abs() >= 1 {
+                return delta.partial_cmp(&TimeDelta::zero()).unwrap();
+            }
+        }
+        Ordering::Equal
+    }
+    fn display_diff(&self) -> String {
+        if let Some(delta) = self.delta {
+            let mut seconds = delta.num_seconds();
+            let mut result = String::new();
+            result.push(if seconds < 0 { '-' } else { '+' });
+            seconds = seconds.abs();
+            let hours = seconds / 3600;
+            seconds %= 3600;
+            let minutes = seconds / 60;
+            seconds %= 60;
+            if hours > 0 {
+                write!(result, "{hours}h").unwrap();
+            }
+            if minutes > 0 {
+                write!(result, "{minutes}m").unwrap();
+            }
+            write!(result, "{seconds}s").unwrap();
+            result
+        } else {
+            String::new()
+        }
+    }
+}
+
+impl Display for DisplayTimeDelta {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let mut seconds = self.time.num_seconds();
+        let hours = seconds / 3600;
+        seconds %= 3600;
+        let minutes = seconds / 60;
+        seconds %= 60;
+        if hours > 0 {
+            write!(f, "{hours}h")?;
+        }
+        if minutes > 0 {
+            write!(f, "{minutes}m")?;
+        }
+        write!(f, "{seconds}s")
+    }
+}
+
+#[derive(Clone, Debug)]
 struct WeekStats {
     number: i64,
     wins: u32,
@@ -270,6 +359,7 @@ struct WeekStats {
     heatmap_data: HeatMapData,
     #[allow(clippy::type_complexity)]
     per_role_per_champ: Vec<(Role, Vec<(String, String, WeekStats)>)>,
+    legendary_buy_times: Vec<DisplayTimeDelta>,
 }
 
 impl WeekStats {
@@ -308,6 +398,12 @@ impl WeekStats {
                 }
             }
         }
+        self.legendary_buy_times
+            .iter_mut()
+            .zip(&other.legendary_buy_times)
+            .for_each(|(buy_times, other_buy_times)| {
+                buy_times.compare_to(other_buy_times);
+            });
     }
 }
 
@@ -506,8 +602,94 @@ fn gather_stats<'a>(
                 pos.y = 512 - pos.y;
                 heatmap_data.entry(minute).or_default().push(pos);
             }
+
+            add_legendary_buys(&mut stats, &timeline, timeline_player_id);
             stats
         })
+}
+
+fn get_legendary_buys<'a>(
+    frames: impl IntoIterator<Item = &'a json::Frame>,
+    timeline_player_id: usize,
+) -> Vec<TimeDelta> {
+    // Get timestamps of all legendary buys and sells
+    let int = frames
+        .into_iter()
+        .flat_map(|f| {
+            f.events.iter().filter_map(|e| {
+                if let json::Event::ItemPurchased {
+                    item_id,
+                    participant_id,
+                    timestamp,
+                } = e
+                {
+                    if *participant_id == timeline_player_id
+                        && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
+                    {
+                        return Some((*timestamp, true));
+                    }
+                }
+                if let json::Event::ItemSold {
+                    item_id,
+                    participant_id,
+                    timestamp,
+                } = e
+                {
+                    if *participant_id == timeline_player_id
+                        && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
+                    {
+                        return Some((*timestamp, false));
+                    }
+                }
+                if let json::Event::ItemUndo {
+                    after_id: _,
+                    before_id,
+                    gold_gain: _,
+                    participant_id,
+                    timestamp,
+                } = e
+                {
+                    if *participant_id == timeline_player_id
+                        && ITEM_RANKS.get(before_id) == Some(&json::ItemType::Legendary)
+                    {
+                        return Some((*timestamp, false));
+                    }
+                }
+                None
+            })
+        })
+        .collect::<Vec<_>>();
+    println!("{int:?}");
+    // Then remove the buys that are followed by a sell
+    int.into_iter()
+        .fold(vec![], |mut legendary_buys, (timestamp, is_buy)| {
+            if is_buy {
+                legendary_buys.push(timestamp);
+            } else {
+                // Can't sell a legendary item if you haven't bought one, so this
+                // should always work.
+                legendary_buys.pop().unwrap();
+            }
+            legendary_buys
+        })
+}
+
+fn add_legendary_buys(
+    stats: &mut WeekStatsGathering,
+    timeline: &json::Timeline,
+    timeline_player_id: usize,
+) {
+    let this_games_buys = get_legendary_buys(&timeline.info.frames, timeline_player_id);
+    while stats.legendary_item_buy_times.len() < this_games_buys.len() {
+        stats.legendary_item_buy_times.push(vec![]);
+    }
+    stats
+        .legendary_item_buy_times
+        .iter_mut()
+        .zip(this_games_buys)
+        .for_each(|(buys, timestamp)| {
+            buys.push(timestamp);
+        });
 }
 
 fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
@@ -556,6 +738,11 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
             })
         })
         .collect();
+    let legendary_buy_times = gathered
+        .legendary_item_buy_times
+        .into_iter()
+        .map(|nth| DisplayTimeDelta::from(median_td(&nth)))
+        .collect();
     WeekStats {
         number: week_number,
         wins: gathered.wins,
@@ -578,6 +765,7 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         at_minute_stats,
         heatmap_data,
         per_role_per_champ: vec![],
+        legendary_buy_times,
     }
 }
 
@@ -732,9 +920,12 @@ pub async fn page(state: State, path: web::Path<PlayerRoleChamp>) -> ActixResult
 
 #[cfg(test)]
 mod tests {
+    use super::level_for_xp;
+    use crate::riot_api::json;
+    use chrono::TimeDelta;
+    use std::collections::HashMap;
     use test_case::test_case;
 
-    use super::level_for_xp;
     #[test_case(0, 1.0)]
     #[test_case(280, 2.0)]
     #[test_case(660, 3.0)]
@@ -776,16 +967,122 @@ mod tests {
         assert!((average - expected).abs() < 0.01);
     }
 
-    #[test_case(&[1.0, 2.0, 3.0, 4.0, 5.0], 3.0)]
-    #[test_case(&[0.0, f64::MAX], f64::MAX / 2.0)]
-    #[test_case(&[0.0, f64::MAX, f64::MAX], f64::MAX)]
-    #[test_case(&[0, 0, 0, 0, 0, 1], 0.0)]
-    #[test_case(&[0, 0, 0, 0, 0, 0, 1], 0.0)]
-    fn test_median<'a, T>(values: impl IntoIterator<Item = &'a T>, expected: f64)
-    where
-        T: Copy + Into<f64> + 'a,
-    {
-        let median = super::median(values);
-        assert!((median - expected).abs() < 0.01);
+    //    #[test_case(&[1.0_f64, 2.0, 3.0, 4.0, 5.0], 3.0)]
+    //    #[test_case(&[0.0, f64::MAX], f64::MAX / 2.0)]
+    //    #[test_case(&[0.0, f64::MAX, f64::MAX], f64::MAX)]
+    //    #[test_case(&[0, 0, 0, 0, 0, 1], 0.0)]
+    //    #[test_case(&[0, 0, 0, 0, 0, 0, 1], 0.0)]
+    //fn test_median<'a, T>(values: impl IntoIterator<Item = impl Borrow<T>>, expected: f64)
+    //where
+    //T: Clone + Into<f64> + 'a,
+    #[test]
+    fn test_median() {
+        let values: [f64; 5] = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let median = super::median(&values);
+        assert!((median - 3.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_buys_sells() {
+        let frames = [
+            json::Frame {
+                events: vec![],
+                participant_frames: HashMap::new(),
+                timestamp: TimeDelta::minutes(0),
+            },
+            json::Frame {
+                events: vec![],
+                participant_frames: HashMap::new(),
+                timestamp: TimeDelta::minutes(1),
+            },
+            json::Frame {
+                events: vec![
+                    json::Event::ItemPurchased {
+                        item_id: 2503,
+                        participant_id: 1,
+                        timestamp: TimeDelta::minutes(1) + TimeDelta::seconds(30),
+                    },
+                    json::Event::ItemPurchased {
+                        item_id: 2503,
+                        participant_id: 2,
+                        timestamp: TimeDelta::minutes(1) + TimeDelta::seconds(45),
+                    },
+                ],
+                participant_frames: HashMap::new(),
+                timestamp: TimeDelta::minutes(2),
+            },
+            json::Frame {
+                events: vec![
+                    json::Event::ItemSold {
+                        item_id: 2503,
+                        participant_id: 1,
+                        timestamp: TimeDelta::minutes(2) + TimeDelta::seconds(25),
+                    },
+                    json::Event::ItemPurchased {
+                        item_id: 3118,
+                        participant_id: 1,
+                        timestamp: TimeDelta::minutes(2) + TimeDelta::seconds(30),
+                    },
+                ],
+                participant_frames: HashMap::new(),
+                timestamp: TimeDelta::minutes(3),
+            },
+            json::Frame {
+                events: vec![
+                    json::Event::ItemPurchased {
+                        item_id: 2503,
+                        participant_id: 2,
+                        timestamp: TimeDelta::minutes(3) + TimeDelta::seconds(30),
+                    },
+                    json::Event::ItemUndo {
+                        before_id: 2503,
+                        after_id: 0,
+                        gold_gain: 1800,
+                        participant_id: 2,
+                        timestamp: TimeDelta::minutes(3) + TimeDelta::seconds(31),
+                    },
+                    json::Event::ItemPurchased {
+                        item_id: 2504,
+                        participant_id: 2,
+                        timestamp: TimeDelta::minutes(3) + TimeDelta::seconds(32),
+                    },
+                    json::Event::ItemPurchased {
+                        item_id: 3116,
+                        participant_id: 1,
+                        timestamp: TimeDelta::minutes(3) + TimeDelta::seconds(45),
+                    },
+                ],
+                participant_frames: HashMap::new(),
+                timestamp: TimeDelta::minutes(4),
+            },
+        ];
+        let expected_player1 = vec![
+            TimeDelta::minutes(2) + TimeDelta::seconds(30),
+            TimeDelta::minutes(3) + TimeDelta::seconds(45),
+        ];
+        let expected_player2 = vec![
+            TimeDelta::minutes(1) + TimeDelta::seconds(45),
+            TimeDelta::minutes(3) + TimeDelta::seconds(32),
+        ];
+        let player1_buys = super::get_legendary_buys(&frames, 1);
+        let player2_buys = super::get_legendary_buys(&frames, 2);
+        assert_eq!(player1_buys, expected_player1);
+        assert_eq!(player2_buys, expected_player2);
+    }
+
+    #[test_case(1001, json::ItemType::Boots)]
+    #[test_case(1011, json::ItemType::Epic)]
+    #[test_case(1026, json::ItemType::Basic)]
+    #[test_case(3040, json::ItemType::Legendary)]
+    #[test_case(3041, json::ItemType::Legendary)]
+    #[test_case(3046, json::ItemType::Legendary)]
+    #[test_case(2055, json::ItemType::Consumable)]
+    #[test_case(2003, json::ItemType::Potion)]
+    #[test_case(3340, json::ItemType::Trinket)]
+    #[test_case(1054, json::ItemType::Starter)]
+    fn test_ranks_map(item_id: i32, expected: json::ItemType) {
+        let ranks = &super::ITEM_RANKS;
+        println!("{ranks:?}");
+        assert_eq!(super::ITEM_RANKS.get(&item_id), Some(&expected));
     }
 }

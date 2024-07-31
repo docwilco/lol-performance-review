@@ -3,17 +3,15 @@
 {% endmacro %}
 
 {% macro float_diff(number) %}
-    {% match number.has_visible_diff() %}
-        {% when Ordering::Less %}
-            {% if let Some(delta) = number.delta %}
+{% if let Some(delta) = number.delta %}
+{% match number.has_visible_diff() %}
+{% when Ordering::Less %}
 <span class="negative">{{ "{:+.1}"|format(delta) }}</span>
-{% endif %}
-        {% when Ordering::Greater %}
-            {% if let Some(delta) = number.delta %}
+{% when Ordering::Greater %}
 <span class="positive">{{ "{:+.1}"|format(delta) }}</span>
+{% when Ordering::Equal %}
+{% endmatch %}
 {% endif %}
-        {% when Ordering::Equal %}
-    {% endmatch %}
 {% endmacro %}
 
 {% macro float_with_diff(number) %}
@@ -23,6 +21,22 @@
 {{ "{:.1}"|format(number) }}%{% call float_diff(number) %}
 {% endmacro %}
 
+{% macro timedelta_with_diff(timedelta) %}
+{{ timedelta }}{% call timedelta_diff(timedelta) %}
+{% endmacro %}
+
+{% macro timedelta_diff(timedelta) %}
+{% if let Some(delta) = timedelta.delta %}
+{% match timedelta.has_visible_diff() %}
+{% when Ordering::Less %}
+<span class="negative">{{ timedelta.display_diff() }}</span>
+{% when Ordering::Greater %}
+<span class="positive">{{ timedelta.display_diff() }}</span>
+{% when Ordering::Equal %}
+{% endmatch %}
+{% endif %}
+{% endmacro %}
+
 {% macro title(player, champion) %}
 {% if let Some(champion) = champion %}
 {{ champion|escape }} stats
@@ -30,7 +44,6 @@
 Stats
 {% endif %}
 for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.region }}
-</title>
 {% endmacro %}
 <!DOCTYPE html>
 <html>
@@ -332,6 +345,31 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             <td>Solo Deaths</td>
                             <td>{% call float_with_diff(week.solo_deaths) %}</td>
                         </tr>
+                        {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
+                        <tr>
+                            <td>First Legendary Item</td>
+                            <td>
+                                {% call timedelta_with_diff(legendary) %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
+                        <tr>
+                            <td>Second Legendary Item</td>
+                            <td>
+                                {% call timedelta_with_diff(legendary) %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
+                        <tr>
+                            <td>Third Legendary Item</td>
+                            <td>
+                                {% call timedelta_with_diff(legendary) %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
                     </table>
                     <table>
                         <thead>

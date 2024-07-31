@@ -49,7 +49,12 @@ pub async fn get_puuid_and_canonical_name(state: &State, player: &mut Player) ->
     convert = r#"{ format!("{region}#{match_id}") }"#,
     map_error = r##"|e| e"##
 )]
-pub async fn get_match(state: &State, region: ApiRegion, match_id: &str, player: &Player) -> Result<json::Match> {
+pub async fn get_match(
+    state: &State,
+    region: ApiRegion,
+    match_id: &str,
+    player: &Player,
+) -> Result<json::Match> {
     state
         .client
         .get::<json::Match>(region, "/lol/match/v5/matches", [match_id], player)
@@ -71,7 +76,12 @@ pub async fn get_match_timeline(
 ) -> Result<json::Timeline> {
     state
         .client
-        .get::<json::Timeline>(region, "/lol/match/v5/matches", [match_id, "timeline"], player)
+        .get::<json::Timeline>(
+            region,
+            "/lol/match/v5/matches",
+            [match_id, "timeline"],
+            player,
+        )
         .await
 }
 

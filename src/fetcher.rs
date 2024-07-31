@@ -8,7 +8,10 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{riot_api::{json::Role, update_match_history}, Player, Result, State};
+use crate::{
+    riot_api::{json::Role, update_match_history},
+    Player, Result, State,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub enum FetchStatus {
@@ -130,6 +133,7 @@ pub async fn check_or_start_fetching(
                 url.push('/');
                 url.push_str(champion);
             }
-            Ok(RedirectOrContinue::Redirect(Redirect::to(url)))},
+            Ok(RedirectOrContinue::Redirect(Redirect::to(url)))
+        }
     }
 }

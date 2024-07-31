@@ -1,4 +1,6 @@
-use crate::{fetcher::check_or_start_fetching, internal_server_error, Player, PlayerRoleChamp, State};
+use crate::{
+    fetcher::check_or_start_fetching, internal_server_error, Player, PlayerRoleChamp, State,
+};
 use actix_web::{routes, web, Either, HttpResponse, Responder, Result as ActixResult};
 use askama_actix::Template;
 

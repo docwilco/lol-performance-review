@@ -101,6 +101,23 @@ pub struct PerkSelection {
     pub var3: i32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum ItemType {
+    Basic,
+    Boots,
+    Consumable,
+    Distributed,
+    Epic,
+    Legendary,
+    Minion,
+    Potion,
+    Special,
+    Starter,
+    Trinket,
+    Turret,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PerkStyle {
@@ -503,26 +520,26 @@ pub enum Event {
         winning_team: i32,
     },
     ItemDestroyed {
-        item_id: usize,
+        item_id: i32,
         participant_id: usize,
         #[serde_as(as = "DurationMilliSeconds<i64>")]
         timestamp: TimeDelta,
     },
     ItemPurchased {
-        item_id: usize,
+        item_id: i32,
         participant_id: usize,
         #[serde_as(as = "DurationMilliSeconds<i64>")]
         timestamp: TimeDelta,
     },
     ItemSold {
-        item_id: usize,
+        item_id: i32,
         participant_id: usize,
         #[serde_as(as = "DurationMilliSeconds<i64>")]
         timestamp: TimeDelta,
     },
     ItemUndo {
-        after_id: usize,
-        before_id: usize,
+        after_id: i32,
+        before_id: i32,
         gold_gain: i32,
         participant_id: usize,
         #[serde_as(as = "DurationMilliSeconds<i64>")]
