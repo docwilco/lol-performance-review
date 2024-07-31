@@ -1085,7 +1085,6 @@ mod tests {
     #[test_case(3340, json::ItemType::Trinket)]
     #[test_case(1054, json::ItemType::Starter)]
     fn test_ranks_map(item_id: i32, expected: json::ItemType) {
-        let ranks = &super::ITEM_RANKS;
         assert_eq!(super::ITEM_RANKS.get(&item_id), Some(&expected));
     }
 }
