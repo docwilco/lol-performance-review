@@ -285,11 +285,11 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             <h1>{% call title(player, champion) %}</h1>
             <div class="tab">
                 {% for week in weeks %}
-                <button class="tablinks" onclick="openTab('Week{{ week.number }}')" id="Week{{ week.number }}link">Week {{ week.number }}</button>
+                <button class="tablinks" onclick="openTab('week{{ week.number }}')" id="week{{ week.number }}link">Week {{ week.number }}</button>
                 {% endfor %}
             </div>
             {% for week in weeks %}
-            <div id="Week{{ week.number }}" class="tabcontent">
+            <div id="week{{ week.number }}" class="tabcontent">
                 <h2>Week {{ week.number }}</h2>
                 <div class="stats-tables">
                     <table>
@@ -515,10 +515,15 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 }
                 document.getElementById(tabName).style.display = "block";
                 document.getElementById(tabName + 'link').className += " active";
+                window.location.hash = tabName;
             }
             // Wait for the document to load before showing Tab 1
             document.addEventListener("DOMContentLoaded", function() {
-                openTab('Week1');
+                if (window.location.hash.startsWith('#week')) {
+                    openTab(window.location.hash.substring(1));
+                } else {
+                    openTab('week1');
+                }
             });
     </script>
     <script>
