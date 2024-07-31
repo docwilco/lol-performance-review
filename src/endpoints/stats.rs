@@ -659,7 +659,6 @@ fn get_legendary_buys<'a>(
             })
         })
         .collect::<Vec<_>>();
-    println!("{int:?}");
     // Then remove the buys that are followed by a sell
     int.into_iter()
         .fold(vec![], |mut legendary_buys, (timestamp, is_buy)| {
@@ -1082,7 +1081,6 @@ mod tests {
     #[test_case(1054, json::ItemType::Starter)]
     fn test_ranks_map(item_id: i32, expected: json::ItemType) {
         let ranks = &super::ITEM_RANKS;
-        println!("{ranks:?}");
         assert_eq!(super::ITEM_RANKS.get(&item_id), Some(&expected));
     }
 }
