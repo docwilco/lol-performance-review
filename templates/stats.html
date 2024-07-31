@@ -397,7 +397,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 <div class="champs-table">
                     {% if champion.is_none() %}
                 {% for (role, per_champ) in week.per_role_per_champ %}
-                    <h3><a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}">{{ role }}</a></h3>
+                    <h3><a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#week{{ week.number }}">{{ role }}</a></h3>
                     <table>
                         <thead>
                             <tr>
@@ -412,7 +412,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             {% for (champion, normalized_champion, champion_stats) in per_champ %}
                             <tr>
                                 <td>
-                                    <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}/{{ normalized_champion }}">{{ champion }}</a>
+                                    <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}/{{ normalized_champion }}#week{{ week.number }}">{{ champion }}</a>
                                 </td>
                                 <td>{{ champion_stats.games_played }}</td>
                                 <td>{% call percent_float_with_diff(champion_stats.winrate) %}</td>
