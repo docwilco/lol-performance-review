@@ -120,7 +120,11 @@ pub async fn update_match_history(
     let mut match_ids = vec![];
     let mut earliest_match = None;
     while earliest_match.map_or(true, |earliest| earliest > start) {
-        match_ids.extend(get_match_history(state, region, &puuid, earliest_match, player).await?);
+        let new = get_match_history(state, region, &puuid, earliest_match, player).await?;
+        if new.is_empty() {
+            break;
+        }
+        match_ids.extend(new);
         earliest_match = match match_ids.last() {
             Some(match_id) => {
                 let match_info = get_match(state, region, match_id, player).await?;

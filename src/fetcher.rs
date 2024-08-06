@@ -127,11 +127,13 @@ pub async fn check_or_start_fetching(
                 game_name = player.game_name,
                 tag_line = player.tag_line
             );
-            if let Some(champion) = champion {
+            if let Some(role) = role {
                 url.push('/');
-                url.push_str(&role.unwrap().to_string().to_lowercase());
-                url.push('/');
-                url.push_str(champion);
+                url.push_str(&role.lowercase());
+                if let Some(champion) = champion {
+                    url.push('/');
+                    url.push_str(champion);
+                }    
             }
             Ok(RedirectOrContinue::Redirect(Redirect::to(url)))
         }
