@@ -69,8 +69,18 @@
                     source.close();
                     progressText.textContent = "Done!";
                     let url = window.location.href;
-                    url = url.replace('/fetch/', '/stats/');
-                    window.location.replace(url);
+                    let urlObj = new URL(url);
+                    let params = new URLSearchParams(urlObj.search);
+                    let from = params.get('from');
+                    if (from) {
+                        url = from;
+                    } else {
+                        url = window.location.href;
+                        url = url.replace('/fetch/', '/stats/');
+                    }
+                    urlObj.pathname = url;
+                    urlObj.search = '';
+                    window.location.replace(urlObj.toString());
                     return;
                 }
                 if (data.Error) {

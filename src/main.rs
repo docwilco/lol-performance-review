@@ -9,6 +9,7 @@ use std::{
     sync::Arc,
 };
 
+mod calculations;
 mod fetcher;
 use fetcher::StatusBroadcaster;
 mod endpoints;
@@ -18,6 +19,8 @@ use riot_api::json::{self, Role};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T> = std::result::Result<T, Error>;
+
+include!(concat!(env!("OUT_DIR"), "/codegen-champ-names.rs"));
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Hash, strum::Display, strum::EnumIter)]
@@ -112,8 +115,8 @@ struct PlayerRoleChamp {
     region: LeagueRegion,
     game_name: String,
     tag_line: String,
-    champion: Option<String>,
     role: Option<Role>,
+    champion: Option<String>,
 }
 
 fn normalize_champion_name(champion_name: &str) -> String {

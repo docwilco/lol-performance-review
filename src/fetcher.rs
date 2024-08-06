@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
-    riot_api::{json::Role, update_match_history},
+    riot_api::update_match_history,
     Player, Result, State,
 };
 
@@ -88,8 +88,7 @@ pub enum RedirectOrContinue {
 pub async fn check_or_start_fetching(
     state: State,
     player: &Player,
-    role: Option<Role>,
-    champion: Option<&str>,
+    from_url: Option<&str>,
 ) -> Result<RedirectOrContinue> {
     let mut broadcaster_ref = state
         .fetch_status_per_player
@@ -127,13 +126,9 @@ pub async fn check_or_start_fetching(
                 game_name = player.game_name,
                 tag_line = player.tag_line
             );
-            if let Some(role) = role {
-                url.push('/');
-                url.push_str(&role.lowercase());
-                if let Some(champion) = champion {
-                    url.push('/');
-                    url.push_str(champion);
-                }    
+            if let Some(from_url) = from_url {
+                url.push_str("?from=");
+                url.push_str(from_url);
             }
             Ok(RedirectOrContinue::Redirect(Redirect::to(url)))
         }
