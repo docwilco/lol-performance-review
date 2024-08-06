@@ -38,8 +38,12 @@
 {% endmacro %}
 
 {% macro title(player, champion) %}
+{% if let Some(role) = role %}
 {% if let Some(champion) = champion %}
-{{ champion|escape }} stats
+{{ champion|escape }} ({{ role.lowercase() }}) stats
+{% else %}
+{{ role }} stats
+{% endif %}
 {% else %}
 Stats
 {% endif %}
