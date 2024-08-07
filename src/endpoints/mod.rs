@@ -4,7 +4,7 @@ use actix_web::{get, Responder, Result as ActixResult};
 use askama_actix::Template;
 use strum::IntoEnumIterator;
 
-//pub mod compare;
+pub mod compare;
 pub mod fetch;
 pub mod stats;
 

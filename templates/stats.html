@@ -37,7 +37,7 @@
 {% endif %}
 {% endmacro %}
 
-{% macro title(player, champion) %}
+{% macro title(player, role, champion) %}
 {% if let Some(role) = role %}
 {% if let Some(champion) = champion %}
 {{ champion|escape }} ({{ role.lowercase() }}) stats
@@ -52,7 +52,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
 <!DOCTYPE html>
 <html>
     <head>
-        <title>{% call title(player, champion) %}</title>
+        <title>{% call title(player, role, champion) %}</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -293,28 +293,28 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             </div>
             {% for week in weeks %}
             <div id="week{{ week.number }}" class="tabcontent">
-                <h1>{% call title(player, champion) %}</h1>
+                <h1>{% call title(player, role, champion) %}</h1>
                 <h2>Week {{ week.number }}</h2>
                 <div class="stats-tables">
                     <table>
                         <tr>
-                            <td>Wins:</td>
+                            <td>Wins</td>
                             <td>{{ week.wins }}</td>
                         </tr>
                         <tr>
-                            <td>Losses:</td>
+                            <td>Losses</td>
                             <td>{{ week.losses }}</td>
                         </tr>
                         <tr>
-                            <td>Games played:</td>
+                            <td>Games played</td>
                             <td>{{ week.games_played }}</td>
                         </tr>
                         <tr>
-                            <td>Win rate:</td>
+                            <td>Win rate</td>
                             <td>{% call percent_float_with_diff(week.winrate) %}</td>
                         </tr>
                         <tr>
-                            <td>KDA:</td>
+                            <td>KDA</td>
                             <td>{% call float_with_diff(week.kills) %} / {% call float_with_diff(week.deaths) %} / {% call float_with_diff(week.assists) %} ({% call float_with_diff(week.kda) %})</td>
                         </tr>
                         <tr>
@@ -322,8 +322,8 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             <td>{% call float_with_diff(week.cs_per_minute) %}</td>
                         </tr>
                         <tr>
-                            <td>Gold share:</td>
-                            <td>{% call float_with_diff(week.gold_share) %}</td>
+                            <td>Gold share</td>
+                            <td>{% call percent_float_with_diff(week.gold_share) %}</td>
                         </tr>
                         <tr>
                             <td>Champion Damage Share</td>

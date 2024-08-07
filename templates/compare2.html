@@ -1,0 +1,531 @@
+{% macro opt_print(value) %}
+{% if let Some(value) = value %}
+{{ value }}
+{% endif %}
+{% endmacro %}
+
+{% macro float_one_decimal(number) %}
+{{ "{:.1}"|format(number) }}
+{% endmacro %}
+
+{% macro opt_float_one_decimal(number) %}
+{% if let Some(number) = number %}
+{{ float_one_decimal(number) }}
+{% endif %}
+{% endmacro %}
+
+
+{% macro float_diff(number) %}
+{% if let Some(delta) = number.delta %}
+{% match number.has_visible_diff() %}
+{% when Ordering::Less %}
+<span class="negative">{{ "{:+.1}"|format(delta) }}</span>
+{% when Ordering::Greater %}
+<span class="positive">{{ "{:+.1}"|format(delta) }}</span>
+{% when Ordering::Equal %}
+{% endmatch %}
+{% endif %}
+{% endmacro %}
+
+{% macro opt_float_diff (number) %}
+{% if let Some(number) = number %}
+{{ float_diff(number) }}
+{% endif %}
+{% endmacro %}
+
+{% macro float_with_diff(number) %}
+{{ "{:.1}"|format(number) }}{% call float_diff(number) %}
+{% endmacro %}
+{% macro percent_float_with_diff(number) %}
+{{ "{:.1}"|format(number) }}%{% call float_diff(number) %}
+{% endmacro %}
+
+{% macro opt_float_with_diff(number) %}
+{% if let Some(number) = number %}
+{% call float_with_diff(number) %}
+{% endif %}
+{% endmacro %}
+{% macro opt_percent_float_with_diff(number) %}
+{% if let Some(number) = number %}
+{% call percent_float_with_diff(number) %}
+{% endif %}
+{% endmacro %}
+
+{% macro timedelta_with_diff(timedelta) %}
+{{ timedelta }}{% call timedelta_diff(timedelta) %}
+{% endmacro %}
+
+{% macro opt_timedelta_with_diff(timedelta) %}
+{% if let Some(timedelta) = timedelta %}
+{% call timedelta_with_diff(timedelta) %}
+{% endif %}
+{% endmacro %}
+
+{% macro timedelta_diff(timedelta) %}
+{% if let Some(delta) = timedelta.delta %}
+{% match timedelta.has_visible_diff() %}
+{% when Ordering::Less %}
+<span class="negative">{{ timedelta.display_diff() }}</span>
+{% when Ordering::Greater %}
+<span class="positive">{{ timedelta.display_diff() }}</span>
+{% when Ordering::Equal %}
+{% endmatch %}
+{% endif %}
+{% endmacro %}
+
+{% macro opt_timedelta_diff(timedelta) %}
+{% if let Some(timedelta) = timedelta %}
+{{ timedelta_diff(timedelta) }}
+{% endif %}
+{% endmacro %}
+
+{% macro title(player1, player2, role, champion) %}
+{% if let Some(role) = role %}
+{% if let Some(champion) = champion %}
+{{ champion|escape }} ({{ role.lowercase() }}) comparison
+{% else %}
+{{ role }} comparison
+{% endif %}
+{% else %}
+Comparison
+{% endif %}
+of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.region }} with {{ player2.game_name|escape }}#{{ player2.tag_line|escape }} on {{ player2.region }} 
+{% endmacro %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{% call title(players[0], players[1], role, champion) %}</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f5f5f5;
+                margin: 0;
+                padding: 0;
+            }
+
+            h1 {
+                text-align: center;
+                margin: 20px 0;
+                color: #333;
+            }
+
+            .tab {
+                position: fixed;
+                top: 20px; /* Adjust as needed */
+                left: 0;
+                width: 200px; /* Adjust as needed */
+                border: 1px solid #ccc;
+                background-color: #f1f1f1;
+                margin: 20px auto;
+                width: 100px;
+            }
+
+            .tab button {
+                display: block;
+                width: 100px;
+                background-color: inherit;
+                border: none;
+                outline: none;
+                cursor: pointer;
+                padding: 14px 16px;
+                transition: 0.3s;
+                text-align: left;
+            }
+
+            .tab button:hover {
+                background-color: #ddd;
+            }
+
+            .tab button.active {
+                background-color: #ccc;
+            }
+
+            .tabcontent {
+                display: none;
+                padding: 6px 12px;
+                border: 1px solid #ccc;
+                border-top: none;
+                padding: 20px;
+                margin: 0 auto;
+                width: 80%;
+                background-color: white;                
+            }
+
+            .positive {
+                color: darkgreen;
+                font-size: 75%;
+            }
+            .negative {
+                color: darkred;
+                font-size: 75%;
+            }
+
+            .stats-table {
+                display: flex;
+                justify-content: space-between;
+            }
+            .stats-table table {
+                display: table;
+                width: 48%;
+                border-collapse: collapse;
+            }
+
+            /* pivot the table, so that we can do all data for one player with
+            one `if let` */ 
+            .stats-table table tr {
+                display: table-cell;
+            }
+            .stats-table table tr td {
+                display: block;
+            }
+            .stats-table table tr th {
+                display: block;
+            }
+
+            .champs-table table {
+                width: 100%;
+                margin-top: 20px;
+                border-collapse: collapse;
+            }
+
+            td, th {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+
+            th {
+                background-color: #f2f2f2;
+                font-weight: bold;
+            }
+
+            .all-heatmaps-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+
+            .heatmap-container {
+                margin-top: 20px;
+                display: block;
+            }
+
+            .heatmap-controller {
+                position: fixed;
+                bottom: 0px;
+                width: 100%;
+                padding: 10px;
+                background-color: #eee;
+                border-width: 1px 0 0 0;
+                border-style: solid;
+                border-color: #aaa;
+            }
+
+            .heatmap-controller button {
+                background-color: #3264fe;
+                color: white;
+                border: none; 
+                border-radius: 16px;
+                padding: 5px 10px;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                font-size: 14px;
+                cursor: pointer;
+                line-height: 1;
+            }
+
+            .heatmap-controller button:hover {
+                background-color: #2548b0; /* Darker blue on hover */
+            }                
+
+            .heatmap {
+                width: 512px;
+                height: 512px;
+                background-size: 512px;
+                background-image: url(/static/SR_minimap.png);
+                color: white;
+            }
+            .heatmap > p {
+                position: absolute;
+                bottom: 10px;
+                right: 10px;
+                margin: 0px;
+            }
+            .heatmap > img {
+                width: 20px;
+                height: 20px;
+                position: absolute;
+                top: 246px;
+                left: 246px;
+            }
+
+            input[type="range"] {
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                width: 100%;
+                outline: none;
+                position: absolute;
+                margin: auto;
+                top: 0;
+                bottom: 0;
+                background-color: transparent;
+                pointer-events: none;
+            }
+            .slider-track {
+                width: 100%;
+                height: 5px;
+                position: absolute;
+                margin: auto;
+                top: 0;
+                bottom: 0;
+                border-radius: 5px;
+            }
+            .slider-container {
+                position: relative;
+                width: 50%;
+                height: 40px;
+            }
+            .bottom-filler {
+                height: 250px;
+                width: 100%;
+            }
+            input[type="range"]::-webkit-slider-runnable-track {
+                -webkit-appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-moz-range-track {
+                -moz-appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-ms-track {
+                appearance: none;
+                height: 5px;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                background-color: #3264fe;
+                cursor: pointer;
+                margin-top: -9px;
+                pointer-events: auto;
+                border-radius: 50%;
+            }
+            input[type="range"]::-moz-range-thumb {
+                -webkit-appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                cursor: pointer;
+                border-radius: 50%;
+                background-color: #3264fe;
+                pointer-events: auto;
+                border: none;
+            }
+            input[type="range"]::-ms-thumb {
+                appearance: none;
+                height: 1.7em;
+                width: 1.7em;
+                cursor: pointer;
+                border-radius: 50%;
+                background-color: #3264fe;
+                pointer-events: auto;
+            }
+            input[type="range"]:active::-webkit-slider-thumb {
+                background-color: #ffffff;
+                border: 1px solid #3264fe;
+            }
+        </style>
+        <script src="/static/heatmap.min.js"></script>
+    </head>
+    <body>
+        <div class="bodydiv">
+            <div class="tab">
+                {% for week_number in week_numbers %}
+                <button class="tablinks" onclick="openTab('week{{ week_number }}')" id="week{{ week_number }}link">Week {{ week_number }}</button>
+                {% endfor %}
+            </div>
+            {% for week_number in week_numbers %}
+            <div id="week{{ week_number }}" class="tabcontent">
+                <h1>{% call title(players[0], players[1], role, champion) %}</h1>
+                <h2>Week {{ week_number }}</h2>
+                <div class="stats-table">
+                    <table>
+                        <tr>
+                            <th>&nbsp;</th>
+                            <th>Wins</th>
+                            <th>Losses</th>
+                            <th>Games played</th>
+                            <th>Win rate</th>
+                            <th>KDA</th>
+                            <th>CS/min</th>
+                            <th>Gold share</th>
+                            <th>Champion Damage Share</th>
+                            <th>Objective Damage Share</th>
+                            <th>Vision Share</th>
+                            <th>Vision Score/min</th>
+                            <th>Solo Kills</th>
+                            <th>Solo Deaths</th>
+                            <th>First Legendary Item</th>
+                            <th>Second Legendary Item</th>
+                            <th>Third Legendary Item</th>
+                        </tr>
+                        {% for player in players %}
+                        <tr>
+                            <th>{{ player.game_name }}#{{ player.tag_line }}</th>
+                            {% if let Some(week) = Self::get_week(self, player, week_number) %}
+                            <td>{{ week.wins }}</td>
+                            <td>{{ week.losses }}</td>
+                            <td>{{ week.games_played }}</td>
+                            <td>{% call percent_float_with_diff(week.winrate) %}</td>
+                            <td>
+                                {% call float_with_diff(week.kills) %}
+                                / {% call float_with_diff(week.deaths) %}
+                                / {% call float_with_diff(week.assists) %}
+                                ( {% call float_with_diff(week.kda) %} )
+                            </td>
+                            <td>{% call float_with_diff(week.cs_per_minute) %}</td>
+                            <td>{% call percent_float_with_diff(week.gold_share) %}</td>
+                            <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
+                            <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
+                            <td>{% call percent_float_with_diff(week.vision_share) %}</td>
+                            <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
+                            <td>{% call float_with_diff(week.solo_kills) %}</td>
+                            <td>{% call float_with_diff(week.solo_deaths) %}</td>
+                            <td>
+                                {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
+                                {% call timedelta_with_diff(legendary) %}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
+                                {% call timedelta_with_diff(legendary) %}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
+                                {% call timedelta_with_diff(legendary) %}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            {% else %}
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            <td>&nbsp;</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="heatmap-controller">
+        <div class="slider-container">
+            <div class="slider-track" id="slider-track"></div>
+            <input
+                type="range"
+                min="1"
+                max="60"
+                value="1"
+                id="lower-slider"
+                oninput="slideLower()"
+            >
+            <input
+                type="range"
+                min="1"
+                max="60"
+                value="5"
+                id="upper-slider"
+                oninput="slideUpper()"
+            >
+        </div>
+        <label for="start-number">Start:</label>
+        <input
+            type="number"
+            value="1"
+            min="1"
+            max="60"
+            style="width: 50px"
+            id="start-number"
+            oninput="startChange()"
+        >
+        <label for="end-number">End:</label>
+        <input
+            type="number"
+            value="5"
+            min="1"
+            max="60"
+            style="width: 50px"
+            id="end-number"
+            oninput="endChange()"
+        >
+        <input
+            type="checkbox"
+            checked
+            id="animation-checkbox"
+            oninput="animationCheckboxInput()"
+        >
+        <label for="animation-checkbox">Animate</label>
+        <button onclick="shortcutSettings(1, 5, true)">1-5 Animated</button>
+        <button onclick="shortcutSettings(6, 15, false)">6-15 Static</button>
+        <button onclick="shortcutSettings(6, 20, false)">6-20 Static</button>
+        <button onclick="shortcutSettings(15, 60, false)">15-60 Static</button>
+        <script>
+            function shortcutSettings(start, end, animate) {
+                lowerSlider.value = start;
+                slideLower();
+                upperSlider.value = end;
+                slideUpper();
+                animationCheckbox.checked = animate;
+                animationCheckboxInput();
+            }
+        </script>
+    </div>
+    <div class="bottom-filler"></div>
+    <script>
+            function openTab(tabName) {
+                let i, tabcontent, tablinks;
+                tabcontent = document.getElementsByClassName("tabcontent");
+                for (i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].style.display = "none";
+                }
+                tablinks = document.getElementsByClassName("tablinks");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(" active", "");
+                }
+                document.getElementById(tabName).style.display = "block";
+                document.getElementById(tabName + 'link').className += " active";
+                window.location.hash = tabName;
+            }
+            // Wait for the document to load before showing Tab 1
+            document.addEventListener("DOMContentLoaded", function() {
+                if (window.location.hash.startsWith('#week')) {
+                    openTab(window.location.hash.substring(1));
+                } else {
+                    openTab('week1');
+                }
+            });
+    </script>
+</body>
+</html>

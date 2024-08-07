@@ -197,6 +197,7 @@ async fn main() -> Result<()> {
             .service(Files::new("/static", "static"))
             .service(endpoints::riot_txt)
             .route("/", web::get().to(endpoints::index))
+            .service(endpoints::compare::page2)
             .service(endpoints::stats::page)
             .service(endpoints::fetch::page)
             .service(endpoints::fetch::events)
