@@ -96,7 +96,7 @@
                     progressBar.style.width = progress + '%';
                     progressBar.style.backgroundColor = 'darkgreen';
                     progressBar.textContent = progress + '%';
-                    progressText.textContent = 'Fetching data...';
+                    progressText.textContent = 'Fetching data for {{ player.game_name }}#{{ player.tag_line }} on {{ player.region }}...';
                 }
                 if (data.Waiting) {
                     const progressBar = document.getElementById('progress-bar');
