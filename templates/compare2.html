@@ -160,26 +160,17 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                 font-size: 75%;
             }
 
+            .hidden-stats-table {
+                display: none;
+            }
+
             .stats-table {
                 display: flex;
                 justify-content: space-between;
             }
             .stats-table table {
-                display: table;
                 width: 48%;
                 border-collapse: collapse;
-            }
-
-            /* pivot the table, so that we can do all data for one player with
-            one `if let` */ 
-            .stats-table table tr {
-                display: table-cell;
-            }
-            .stats-table table tr td {
-                display: block;
-            }
-            .stats-table table tr th {
-                display: block;
             }
 
             .champs-table table {
@@ -350,8 +341,8 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             <div id="week{{ week_number }}" class="tabcontent">
                 <h1>{% call title(players[0], players[1], role, champion) %}</h1>
                 <h2>Week {{ week_number }}</h2>
-                <div class="stats-table">
-                    <table>
+                <div class="hidden-stats-table">
+                    <table id="hidden-stats-table-week{{ week_number }}">
                         <tr>
                             <th>&nbsp;</th>
                             <th>Wins</th>
@@ -435,6 +426,8 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                         </tr>
                         {% endfor %}
                     </table>
+                </div>
+                <div class="stats-table" id="pivoted-stats-table-week{{ week_number }}">
                 </div>
             </div>
             {% endfor %}
@@ -526,6 +519,44 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                     openTab('week1');
                 }
             });
+    </script>
+    <script>
+        function pivotTable(week_number) {
+            const statsTableContainer = document.getElementById(`pivoted-stats-table-week${week_number}`);
+            if (statsTableContainer === null) {
+                return;
+            }
+            const oldTable = document.getElementById(`hidden-stats-table-week${week_number}`);
+            if (oldTable === null) {
+                return;
+            }
+            const newTable = document.createElement('table');
+            const oldRows = oldTable.rows;
+            const oldRowCount = oldRows.length;
+            const oldColCount = oldRows[0].cells.length;
+
+            for (let col = 0; col < oldColCount; col++) {
+                const newRow = newTable.insertRow();
+                for (let row = 0; row < oldRowCount; row++) {
+                    const oldCell = oldRows[row].cells[col];
+                    let newCell;
+                    if (oldCell.tagName === 'TH') {
+                        newCell = document.createElement('th');
+                    } else {
+                        newCell = document.createElement('td');
+                    }
+                    newCell.innerHTML = oldCell.innerHTML;
+                    newRow.appendChild(newCell);
+                }
+            }
+            statsTableContainer.appendChild(newTable);
+
+        }
+        document.addEventListener("DOMContentLoaded", function() {
+            {% for week_number in week_numbers %}
+            pivotTable({{ week_number }});
+            {% endfor %}
+        });
     </script>
 </body>
 </html>
