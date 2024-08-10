@@ -37,6 +37,7 @@ pub async fn page(state: State, request: HttpRequest, path: web::Path<PlayerRole
     for current_week in &mut weeks {
         if let Some(previous_week) = previous_week {
             current_week.compare_to(&previous_week);
+            current_week.previous_at_minute_stats = Some(previous_week.at_minute_stats.clone());
         }
         previous_week = Some(current_week.clone());
     }

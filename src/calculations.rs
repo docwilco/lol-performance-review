@@ -15,11 +15,11 @@ use serde::Serialize;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::{self, Display, Formatter, Write},
+    fmt::{self, Display, Formatter, Write}, ops::RangeInclusive,
 };
 
 const NUM_WEEKS: i64 = 4;
-const MINUTES_AT: [u32; 4] = [5, 10, 15, 20];
+const MINUTES_AT: RangeInclusive<u32> = 2..=20;
 const XP_LEVELS: [i32; 17] = [
     280, 380, 480, 580, 680, 780, 880, 980, 1080, 1180, 1280, 1380, 1480, 1580, 1680, 1780, 1880,
 ];
@@ -34,19 +34,10 @@ struct StatsAtMinuteGathering {
 
 #[derive(Clone, Debug)]
 pub struct StatsAtMinute {
-    pub cs_per_minute: NumberWithOptionalDelta,
-    pub gold_diff: NumberWithOptionalDelta,
-    pub cs_diff: NumberWithOptionalDelta,
-    pub level_diff: NumberWithOptionalDelta,
-}
-
-impl StatsAtMinute {
-    fn compare_to(&mut self, other: &Self) {
-        self.cs_per_minute.compare_to(&other.cs_per_minute);
-        self.gold_diff.compare_to(&other.gold_diff);
-        self.cs_diff.compare_to(&other.cs_diff);
-        self.level_diff.compare_to(&other.level_diff);
-    }
+    pub cs_per_minute: f64,
+    pub gold_diff: f64,
+    pub cs_diff: f64,
+    pub level_diff: f64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, strum::EnumIter, strum::Display)]
@@ -223,6 +214,7 @@ pub struct WeekStats {
     pub solo_kills: NumberWithOptionalDelta,
     pub solo_deaths: NumberWithOptionalDelta,
     pub at_minute_stats: Vec<(u32, StatsAtMinute)>,
+    pub previous_at_minute_stats: Option<Vec<(u32, StatsAtMinute)>>,
     pub heatmap_data: HeatMapData,
     #[allow(clippy::type_complexity)]
     pub per_role_per_champ: Vec<(Role, Vec<(String, String, WeekStats)>)>,
@@ -247,11 +239,6 @@ impl WeekStats {
             .compare_to(&other.vision_score_per_minute);
         self.solo_kills.compare_to(&other.solo_kills);
         self.solo_deaths.compare_to(&other.solo_deaths);
-        for (minute, stats) in &mut self.at_minute_stats {
-            if let Some(other_stats) = other.at_minute_stats.iter().find(|(m, _)| m == minute) {
-                stats.compare_to(&other_stats.1);
-            }
-        }
         for (role, per_champ) in &mut self.per_role_per_champ {
             if let Some((_, other_per_champ)) =
                 other.per_role_per_champ.iter().find(|(r, _)| r == role)
@@ -689,13 +676,12 @@ fn add_legendary_buys(
 
 fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
     let at_minute_stats = MINUTES_AT
-        .iter()
-        .filter_map(|&minute| {
+        .filter_map(|minute| {
             let stats_at = gathered.stats_at.get(&minute)?;
-            let cs_per_minute = median(stats_at.iter().map(|s| &s.cs_per_minute)).into();
-            let gold_diff = median(stats_at.iter().map(|s| &s.gold_diff)).into();
-            let cs_diff = median(stats_at.iter().map(|s| &s.cs_diff)).into();
-            let level_diff = median(stats_at.iter().map(|s| &s.level_diff)).into();
+            let cs_per_minute = median(stats_at.iter().map(|s| &s.cs_per_minute));
+            let gold_diff = median(stats_at.iter().map(|s| &s.gold_diff));
+            let cs_diff = median(stats_at.iter().map(|s| &s.cs_diff));
+            let level_diff = median(stats_at.iter().map(|s| &s.level_diff));
 
             Some((
                 minute,
@@ -758,6 +744,7 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         solo_kills: average(&gathered.solo_kills).into(),
         solo_deaths: NumberWithOptionalDelta::up_is_bad_from(average(&gathered.solo_deaths)),
         at_minute_stats,
+        previous_at_minute_stats: None,
         heatmap_data,
         per_role_per_champ: vec![],
         legendary_buy_times,
