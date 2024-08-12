@@ -726,6 +726,49 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             });
     </script>
     <script>
+        function make_chart(type, title, week_number, data) {
+            let canvas = document.getElementById(`${type}_graph_week${week_number}`);
+            let datasets = [
+                {
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    label: 'This week',
+                    data: data[0],
+                    fill: {
+                        target: 1,
+                        above: 'rgba(54, 235, 162, 0.2)',
+                        below: 'rgba(255, 99, 132, 0.2)',
+                    },
+                },
+            ];
+            if (data.length > 1) {
+                datasets.push({
+                    borderColor: 'rgba(64, 64, 64, 0.3)',
+                    backgroundColor: 'rgba(64, 64, 64, 0.3)',
+                    label: 'Previous week',
+                    data: data[1],
+                });
+            }
+            let graph = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    datasets: datasets,
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            text: title,
+                        },
+                    },
+                    scales: {
+                        x: {
+                            type: "linear",
+                        }
+                    }
+                }
+            });
+        }
         document.addEventListener("DOMContentLoaded", function() {
             Chart.defaults.pointRadius = 0;
             Chart.defaults.animation = true;
@@ -734,183 +777,57 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             Chart.defaults.plugins.title.display = true;
             Chart.defaults.scales.linear.display = true;
             Chart.defaults.scales.linear.parsing = false;
+            let cpm_data;
+            let csd_data;
+            let ld_data;
+            let gd_data;
             {% for week in weeks %}
-                let cpm_canvas{{ week.number }} = document.getElementById(`cpm_graph_week{{ week.number }}`);
-                let cpm_graph{{ week.number }} = new Chart(cpm_canvas{{ week.number }}, {
-                    type: 'line',
-                    data: {
-                        datasets: [
-                            {
-                                label: 'This week',
-                                data: [
-                                    {% for (minute, minute_stats) in week.at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
-                                    {% endfor %}
-                                ],
-                                fill: {
-                                    target: 1,
-                                    above: 'rgba(54, 235, 162, 0.2)',
-                                    below: 'rgba(255, 99, 132, 0.2)',
-                                },
-                            },
-                            {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}
-                            {
-                                label: 'Previous week',
-                                data: [
-                                    {% for (minute, minute_stats) in previous_at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
-                                    {% endfor %}
-                                ],
-                            }
-                            {% endif %}
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                text: "CS/min",
-                            },
-                        },
-                        scales: {
-                            x: {
-                                type: "linear",
-                            }
-                        }
-                    }
-                });
-                let csd_canvas{{ week.number }} = document.getElementById(`csd_graph_week{{ week.number }}`);
-                let csd_graph{{ week.number }} = new Chart(csd_canvas{{ week.number }}, {
-                    type: 'line',
-                    data: {
-                        datasets: [
-                            {
-                                label: 'This week',
-                                data: [
-                                    {% for (minute, minute_stats) in week.at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
-                                    {% endfor %}
-                                ],
-                                fill: {
-                                    target: 1,
-                                    above: 'rgba(54, 235, 162, 0.2)',
-                                    below: 'rgba(255, 99, 132, 0.2)',
-                                },
-                            },
-                            {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}
-                            {
-                                label: 'Previous week',
-                                data: [
-                                    {% for (minute, minute_stats) in previous_at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
-                                    {% endfor %}
-                                ],
-                            }
-                            {% endif %}
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                text: "CS Diff",
-                            },
-                        },
-                        scales: {
-                            x: {
-                                type: "linear",
-                            }
-                        }
-                    }
-                });
-                let ld_canvas{{ week.number }} = document.getElementById(`ld_graph_week{{ week.number }}`);
-                let ld_graph{{ week.number }} = new Chart(ld_canvas{{ week.number }}, {
-                    type: 'line',
-                    data: {
-                        datasets: [
-                            {
-                                label: 'This week',
-                                data: [
-                                    {% for (minute, minute_stats) in week.at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
-                                    {% endfor %}
-                                ],
-                                fill: {
-                                    target: 1,
-                                    above: 'rgba(54, 235, 162, 0.2)',
-                                    below: 'rgba(255, 99, 132, 0.2)',
-                                },
-                            },
-                            {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}
-                            {
-                                label: 'Previous week',
-                                data: [
-                                    {% for (minute, minute_stats) in previous_at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
-                                    {% endfor %}
-                                ],
-                            },
-                            {% endif %}
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                text: "Level Diff",
-                            },
-                        },
-                        scales: {
-                            x: {
-                                type: "linear",
-                            }
-                        }
-                    }
-                });
-                let gd_canvas{{ week.number }} = document.getElementById(`gd_graph_week{{ week.number }}`);
-                let gd_graph{{ week.number }} = new Chart(gd_canvas{{ week.number }}, {
-                    type: 'line',
-                    data: {
-                        datasets: [
-                            {
-                                label: 'This week',
-                                data: [
-                                    {% for (minute, minute_stats) in week.at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
-                                    {% endfor %}
-                                ],
-                                fill: {
-                                    target: 1,
-                                    above: 'rgba(54, 235, 162, 0.2)',
-                                    below: 'rgba(255, 99, 132, 0.2)',
-                                },
-                            },
-                            {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}
-                            {
-                                label: 'Previous week',
-                                data: [
-                                    {% for (minute, minute_stats) in previous_at_minute_stats %}
-                                    {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
-                                    {% endfor %}
-                                ],
-                            },
-                            {% endif %}
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                text: "Gold Diff",
-                            },
-                        },
-                        scales: {
-                            x: {
-                                type: "linear",
-                            }
-                        }
-                    }
-                });
+                cpm_data = [[
+                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
+                    {% endfor %}
+                ]];
+                csd_data = [[
+                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
+                    {% endfor %}
+                ]];
+                ld_data = [[
+                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
+                    {% endfor %}
+                ]];
+                gd_data = [[
+                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
+                    {% endfor %}
+                ]];
+                {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}                    
+                    cpm_data.push([
+                        {% for (minute, minute_stats) in previous_at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
+                        {% endfor %}
+                    ]);
+                    csd_data.push([
+                        {% for (minute, minute_stats) in previous_at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
+                        {% endfor %}
+                    ]);
+                    ld_data.push([
+                        {% for (minute, minute_stats) in previous_at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
+                        {% endfor %}
+                    ]);
+                    gd_data.push([
+                        {% for (minute, minute_stats) in previous_at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
+                        {% endfor %}
+                    ]);
+                {% endif %}
+                make_chart('cpm', 'CS/min', {{ week.number }}, cpm_data);
+                make_chart('csd', 'CS Diff', {{ week.number }}, csd_data);
+                make_chart('ld', 'Level Diff', {{ week.number }}, ld_data);
+                make_chart('gd', 'Gold Diff', {{ week.number }}, gd_data);
             {% endfor %}
         });
     </script>
