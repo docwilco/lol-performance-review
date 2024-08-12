@@ -164,13 +164,39 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                 display: none;
             }
 
+            .stats-and-graphs {
+                display: grid;
+                grid-template-areas: 'stats graphs';
+                grid-template-columns: 1fr 1fr;
+            }
+
             .stats-table {
+                grid-area: stats;
                 display: flex;
                 justify-content: space-between;
+                padding-right: 20px;
             }
+
             .stats-table table {
-                width: 48%;
                 border-collapse: collapse;
+            }
+
+            .graphs {
+                grid-area: graphs;
+                display: grid;
+                grid-template-areas:
+                    'graph1 graph2'
+                    'graph3 graph4';
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .graphs div {
+                width: 100%;
+                height: 400px;
+            }
+
+            .graphs div canvas {
+                width: 90% !important;
             }
 
             .champs-table table {
@@ -329,6 +355,7 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             }
         </style>
         <script src="/static/heatmap.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
         <div class="bodydiv">
@@ -341,93 +368,108 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             <div id="week{{ week_number }}" class="tabcontent">
                 <h1>{% call title(players[0], players[1], role, champion) %}</h1>
                 <h2>Week {{ week_number }}</h2>
-                <div class="hidden-stats-table">
-                    <table id="hidden-stats-table-week{{ week_number }}">
-                        <tr>
-                            <th>&nbsp;</th>
-                            <th>Wins</th>
-                            <th>Losses</th>
-                            <th>Games played</th>
-                            <th>Win rate</th>
-                            <th>KDA</th>
-                            <th>CS/min</th>
-                            <th>Gold share</th>
-                            <th>Champion Damage Share</th>
-                            <th>Objective Damage Share</th>
-                            <th>Vision Share</th>
-                            <th>Vision Score/min</th>
-                            <th>Solo Kills</th>
-                            <th>Solo Deaths</th>
-                            <th>First Legendary Item</th>
-                            <th>Second Legendary Item</th>
-                            <th>Third Legendary Item</th>
-                        </tr>
-                        {% for player in players %}
-                        <tr>
-                            <th>{{ player.game_name }}#{{ player.tag_line }}</th>
-                            {% if let Some(week) = Self::get_week(self, player, week_number) %}
-                            <td>{{ week.wins }}</td>
-                            <td>{{ week.losses }}</td>
-                            <td>{{ week.games_played }}</td>
-                            <td>{% call percent_float_with_diff(week.winrate) %}</td>
-                            <td>
-                                {% call float_with_diff(week.kills) %}
+                <div class="stats-and-graphs">
+                    <div class="hidden-stats-table">
+                        <table id="hidden-stats-table-week{{ week_number }}">
+                            <tr>
+                                <th>&nbsp;</th>
+                                <th>Wins</th>
+                                <th>Losses</th>
+                                <th>Games played</th>
+                                <th>Win rate</th>
+                                <th>KDA</th>
+                                <th>CS/min</th>
+                                <th>Gold share</th>
+                                <th>Champion Damage Share</th>
+                                <th>Objective Damage Share</th>
+                                <th>Vision Share</th>
+                                <th>Vision Score/min</th>
+                                <th>Solo Kills</th>
+                                <th>Solo Deaths</th>
+                                <th>1st Legendary Item</th>
+                                <th>2nd Legendary Item</th>
+                                <th>3rd Legendary Item</th>
+                            </tr>
+                            {% for player in players %}
+                            <tr>
+                                <th>{{ player.game_name }}#{{ player.tag_line }}</th>
+                                {% if let Some(week) = Self::get_week(self, player, week_number) %}
+                                <td>{{ week.wins }}</td>
+                                <td>{{ week.losses }}</td>
+                                <td>{{ week.games_played }}</td>
+                                <td>{% call percent_float_with_diff(week.winrate) %}</td>
+                                <td>
+                                    {% call float_with_diff(week.kills) %}
                                 / {% call float_with_diff(week.deaths) %}
                                 / {% call float_with_diff(week.assists) %}
                                 ( {% call float_with_diff(week.kda) %} )
-                            </td>
-                            <td>{% call float_with_diff(week.cs_per_minute) %}</td>
-                            <td>{% call percent_float_with_diff(week.gold_share) %}</td>
-                            <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
-                            <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
-                            <td>{% call percent_float_with_diff(week.vision_share) %}</td>
-                            <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
-                            <td>{% call float_with_diff(week.solo_kills) %}</td>
-                            <td>{% call float_with_diff(week.solo_deaths) %}</td>
-                            <td>
-                                {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
+                                </td>
+                                <td>{% call float_with_diff(week.cs_per_minute) %}</td>
+                                <td>{% call percent_float_with_diff(week.gold_share) %}</td>
+                                <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(week.vision_share) %}</td>
+                                <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
+                                <td>{% call float_with_diff(week.solo_kills) %}</td>
+                                <td>{% call float_with_diff(week.solo_deaths) %}</td>
+                                <td>
+                                    {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
+                                </td>
+                                <td>
+                                    {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
+                                </td>
+                                <td>
+                                    {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
                                 {% endif %}
-                            </td>
-                            {% else %}
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            <td>&nbsp;</td>
-                            {% endif %}
-                        </tr>
-                        {% endfor %}
-                    </table>
-                </div>
-                <div class="stats-table" id="pivoted-stats-table-week{{ week_number }}">
+                                </td>
+                                {% else %}
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                    <div class="stats-table" id="pivoted-stats-table-week{{ week_number }}"></div>
+                    <div class="graphs">
+                        <div>
+                            <canvas id="cpm_graph_week{{week_number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="csd_graph_week{{week_number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="ld_graph_week{{week_number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="gd_graph_week{{week_number}}"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -555,6 +597,98 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
         document.addEventListener("DOMContentLoaded", function() {
             {% for week_number in week_numbers %}
             pivotTable({{ week_number }});
+            {% endfor %}
+        });
+    </script>
+    <script>
+        function make_chart(type, title, week_number, data) {
+            let canvas = document.getElementById(`${type}_graph_week${week_number}`);
+            let datasets = [
+                {
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    label: data[0][0],
+                    data: data[0][1],
+                    fill: {
+                        target: 1,
+                        above: 'rgba(54, 235, 162, 0.2)',
+                        below: 'rgba(255, 99, 132, 0.2)',
+                    },
+                },
+            ];
+            if (data.length > 1) {
+                datasets.push({
+                    borderColor: 'rgba(192, 192, 192, 1)',
+                    backgroundColor: 'rgba(192, 192, 192, 1)',
+                    label: data[1][0],
+                    data: data[1][1],
+                });
+            }
+            let graph = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    datasets: datasets,
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            text: title,
+                        },
+                    },
+                    scales: {
+                        x: {
+                            type: "linear",
+                        }
+                    }
+                }
+            });
+        }
+        document.addEventListener("DOMContentLoaded", function() {
+            Chart.defaults.pointRadius = 0;
+            Chart.defaults.animation = true;
+            Chart.defaults.responsive = true;
+            Chart.defaults.maintainAspectRatio = false;
+            Chart.defaults.plugins.title.display = true;
+            Chart.defaults.scales.linear.display = true;
+            Chart.defaults.scales.linear.parsing = false;
+            let cpm_data;
+            let csd_data;
+            let ld_data;
+            let gd_data;
+            {% for week_number in week_numbers %}
+                cpm_data = [];
+                csd_data = [];
+                ld_data = [];
+                gd_data = [];
+                {% for player in players %}
+                    {% if let Some(week) = Self::get_week(self, player, week_number) %}
+                    cpm_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
+                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
+                        {% endfor %}
+                    ]]);
+                    csd_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
+                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
+                        {% endfor %}
+                    ]]);
+                    ld_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
+                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
+                        {% endfor %}
+                    ]]);
+                    gd_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
+                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
+                        {% endfor %}
+                    ]]);
+                    {% endif %}
+                {% endfor %}
+                make_chart('cpm', 'CS/min', {{ week_number }}, cpm_data);
+                make_chart('csd', 'CS Diff', {{ week_number }}, csd_data);
+                make_chart('ld', 'Level Diff', {{ week_number }}, ld_data);
+                make_chart('gd', 'Gold Diff', {{ week_number }}, gd_data);
             {% endfor %}
         });
     </script>

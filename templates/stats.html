@@ -404,10 +404,18 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                         </table>
                     </div>
                     <div class="graphs">
-                        <div><canvas id="cpm_graph_week{{week.number}}" ></canvas></div>
-                        <div><canvas id="csd_graph_week{{week.number}}" ></canvas></div>
-                        <div><canvas id="ld_graph_week{{week.number}}" ></canvas></div>
-                        <div><canvas id="gd_graph_week{{week.number}}" ></canvas></div>
+                        <div>
+                            <canvas id="cpm_graph_week{{week.number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="csd_graph_week{{week.number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="ld_graph_week{{week.number}}"></canvas>
+                        </div>
+                        <div>
+                            <canvas id="gd_graph_week{{week.number}}"></canvas>
+                        </div>
                     </div>
                 </div>
                 <div class="champs-table">
