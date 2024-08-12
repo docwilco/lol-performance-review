@@ -414,6 +414,7 @@ pub struct ParticipantFrame {
     pub total_gold: i32,
     pub current_gold: i32,
     pub minions_killed: i32,
+    pub jungle_minions_killed: i32,
     pub position: Point,
     pub xp: i32,
 }

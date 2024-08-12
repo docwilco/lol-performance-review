@@ -373,7 +373,8 @@ fn frame_stats_at(
     timestamp: TimeDelta,
 ) -> Option<StatsAtMinuteGathering> {
     let frame = frames.iter().find(|f| f.timestamp >= timestamp)?;
-    let cpm = f64::from(frame.participant_frames.get(&player)?.minions_killed)
+    let cpm = (f64::from(frame.participant_frames.get(&player)?.minions_killed)
+        + f64::from(frame.participant_frames.get(&player)?.jungle_minions_killed))
         / f64::from(i32::try_from(timestamp.num_minutes()).unwrap());
     let gold_diff = (frame.participant_frames.get(&player)?.total_gold)
         - (frame.participant_frames.get(&opponent)?.total_gold);
