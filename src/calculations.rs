@@ -15,7 +15,8 @@ use serde::Serialize;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fmt::{self, Display, Formatter, Write}, ops::RangeInclusive,
+    fmt::{self, Display, Formatter, Write},
+    ops::RangeInclusive,
 };
 
 const NUM_WEEKS: i64 = 4;
@@ -217,8 +218,9 @@ pub struct WeekStats {
     pub previous_at_minute_stats: Option<Vec<(u32, StatsAtMinute)>>,
     pub heatmap_data: HeatMapData,
     #[allow(clippy::type_complexity)]
-    pub per_role_per_champ: Vec<(Role, Vec<(String, String, WeekStats)>)>,
     pub legendary_buy_times: Vec<DisplayTimeDelta>,
+    pub per_role_per_champ: Vec<(Role, DisplayChampMatches)>,
+    pub per_role_per_enemy: Vec<(Role, DisplayChampMatches)>,
 }
 
 impl WeekStats {
@@ -239,6 +241,12 @@ impl WeekStats {
             .compare_to(&other.vision_score_per_minute);
         self.solo_kills.compare_to(&other.solo_kills);
         self.solo_deaths.compare_to(&other.solo_deaths);
+        self.legendary_buy_times
+            .iter_mut()
+            .zip(&other.legendary_buy_times)
+            .for_each(|(buy_times, other_buy_times)| {
+                buy_times.compare_to(other_buy_times);
+            });
         for (role, per_champ) in &mut self.per_role_per_champ {
             if let Some((_, other_per_champ)) =
                 other.per_role_per_champ.iter().find(|(r, _)| r == role)
@@ -252,17 +260,26 @@ impl WeekStats {
                 }
             }
         }
-        self.legendary_buy_times
-            .iter_mut()
-            .zip(&other.legendary_buy_times)
-            .for_each(|(buy_times, other_buy_times)| {
-                buy_times.compare_to(other_buy_times);
-            });
+        for (role, per_champ) in &mut self.per_role_per_enemy {
+            if let Some((_, other_per_champ)) =
+                other.per_role_per_enemy.iter().find(|(r, _)| r == role)
+            {
+                for (champ, _, champ_stats) in per_champ {
+                    if let Some((_, _, other_champ_stats)) =
+                        other_per_champ.iter().find(|(c, _, _)| c == champ)
+                    {
+                        champ_stats.compare_to(other_champ_stats);
+                    }
+                }
+            }
+        }
     }
 }
 
 pub type HeatMapData = Vec<(Role, Side, usize, String)>;
 type HeatMapDataGathering = HashMap<(Role, Side), HashMap<i64, Vec<json::Point>>>;
+type ChampMatches<'a> = Vec<(String, Vec<&'a Match>)>;
+type DisplayChampMatches = Vec<(String, String, WeekStats)>;
 
 fn median<'a, T>(values: impl IntoIterator<Item = &'a T>) -> f64
 where
@@ -747,16 +764,16 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         at_minute_stats,
         previous_at_minute_stats: None,
         heatmap_data,
-        per_role_per_champ: vec![],
         legendary_buy_times,
+        per_role_per_champ: vec![],
+        per_role_per_enemy: vec![],
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn matches_by_role_lane<'a>(
+fn matches_by_role_champ<'a>(
     matches: impl IntoIterator<Item = &'a &'a json::Match>,
     puuid: &'a str,
-) -> Vec<(Role, Vec<(String, Vec<&Match>)>)> {
+) -> Vec<(Role, ChampMatches)> {
     let mut map = HashMap::new();
     for m in matches {
         let player = get_player(m, puuid);
@@ -774,6 +791,59 @@ fn matches_by_role_lane<'a>(
                 .into_iter()
                 // This sorts by the number of matches played with the champion, highest first
                 .sorted_unstable_by_key(|(_, matches)| -(i32::try_from(matches.len()).unwrap()))
+                .collect::<Vec<_>>();
+            (role, champ_map)
+        })
+        // This sorts by the number of matches played in the role, highest first
+        .sorted_by_cached_key(|(_, champ_map)| {
+            -(i32::try_from(
+                champ_map
+                    .iter()
+                    .map(|(_, matches)| matches.len())
+                    .sum::<usize>(),
+            )
+            .unwrap())
+        })
+        .collect()
+}
+fn matches_by_role_enemy<'a>(
+    matches: impl IntoIterator<Item = &'a &'a json::Match>,
+    puuid: &'a str,
+) -> Vec<(Role, ChampMatches)> {
+    let mut map = HashMap::new();
+    for m in matches {
+        let player = get_player(m, puuid);
+        let opponent = get_opponent(m, player);
+        let role = player.team_position;
+        let enemy = opponent.champion_name.clone();
+        map.entry(role)
+            .or_insert_with(HashMap::new)
+            .entry(enemy)
+            .or_insert_with(Vec::new)
+            .push(*m);
+    }
+    map.into_iter()
+        .map(|(role, champ_map)| {
+            let champ_map = champ_map
+                .into_iter()
+                // This sorts by the number of matches played against the champion, highest first
+                .sorted_unstable_by_key(|(_, matches)| -(i32::try_from(matches.len()).unwrap()))
+                // Now sort stable by the winrate, stable so that the previous sort is not affected when the winrate is the same
+                .sorted_by_cached_key(|(_, matches)| {
+                    let wins = matches
+                        .iter()
+                        .filter(|m| {
+                            m.info
+                                .participants
+                                .iter()
+                                .any(|p| p.puuid == puuid && p.win)
+                        })
+                        .count();
+                    let wins = i32::try_from(wins).unwrap();
+                    let len = i32::try_from(matches.len()).unwrap();
+                    let winrate = 100.0 * f64::from(wins) / f64::from(len);
+                    OrderedFloat(winrate)
+                })
                 .collect::<Vec<_>>();
             (role, champ_map)
         })
@@ -832,7 +902,7 @@ pub async fn calc_stats(
             let week_stats = gather_stats(&state, &matches, &puuid);
             let mut display_stats = convert_stats(NUM_WEEKS - weeks_ago, week_stats);
             if champion.is_none() {
-                display_stats.per_role_per_champ = matches_by_role_lane(&matches, &puuid)
+                display_stats.per_role_per_champ = matches_by_role_champ(&matches, &puuid)
                     .into_iter()
                     .filter_map(|(by_role, champ_map)| {
                         if role.is_some() && role != Some(by_role) {
@@ -855,6 +925,28 @@ pub async fn calc_stats(
                     })
                     .collect();
             }
+            display_stats.per_role_per_enemy = matches_by_role_enemy(&matches, &puuid)
+                .into_iter()
+                .filter_map(|(by_role, champ_map)| {
+                    if role.is_some() && role != Some(by_role) {
+                        return None;
+                    }
+                    Some((
+                        by_role,
+                        champ_map
+                            .into_iter()
+                            .map(|(enemy, enemy_matches)| {
+                                let normalized_enemy = normalize_champion_name(&enemy);
+                                let role_enemy_stats = gather_stats(&state, &enemy_matches, &puuid);
+                                let role_enemy_display_stats =
+                                    convert_stats(NUM_WEEKS - weeks_ago, role_enemy_stats);
+                                (enemy, normalized_enemy, role_enemy_display_stats)
+                            })
+                            .collect(),
+                    ))
+                })
+                .collect();
+
             display_stats
         })
         .collect())

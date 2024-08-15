@@ -153,10 +153,18 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 width: 90% !important;
             }
 
+            table {
+                border-collapse: collapse;
+            }
+
             .champs-table table {
                 width: 100%;
                 margin-top: 20px;
-                border-collapse: collapse;
+            }
+
+            .enemy-table table {
+                width: 100%;
+                margin-top: 20px;
             }
 
             td, th {
@@ -418,9 +426,10 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                         </div>
                     </div>
                 </div>
+                {% if champion.is_none() %}
+                <h2>Champion performance</h2>
                 <div class="champs-table">
-                    {% if champion.is_none() %}
-                {% for (role, per_champ) in week.per_role_per_champ %}
+                    {% for (role, per_champ) in week.per_role_per_champ %}
                     <h3>
                         <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#week{{ week.number }}">{{ role }}</a>
                     </h3>
@@ -449,7 +458,37 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                         </tbody>
                     </table>
                     {% endfor %}
+                </div>
                 {% endif %}
+                <h2>Performance versus enemy champions</h2>
+                <div class="enemy-table">
+                    {% for (role, per_champ) in week.per_role_per_enemy %}
+                    <h3>
+                        <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#week{{ week.number }}">{{ role }}</a>
+                    </h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Enemy</th>
+                                <th>Games</th>
+                                <th>Win rate</th>
+                                <th>KDA</th>
+                                <th>CS/min</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for (enemy, normalized_enemy, vs_enemy_stats) in per_champ %}
+                            <tr>
+                                <td>{{ enemy }}</td>
+                                <td>{{ vs_enemy_stats.games_played }}</td>
+                                <td>{% call percent_float_with_diff(vs_enemy_stats.winrate) %}</td>
+                                <td>{% call float_with_diff(vs_enemy_stats.kills) %} / {% call float_with_diff(vs_enemy_stats.deaths) %} / {% call float_with_diff(vs_enemy_stats.assists) %} ( {% call float_with_diff(vs_enemy_stats.kda) %} )</td>
+                                <td>{% call float_with_diff(vs_enemy_stats.cs_per_minute) %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endfor %}
                 </div>
                 <div class="all-heatmaps-container">
                     {% for (role, side, count, data) in week.heatmap_data %}
