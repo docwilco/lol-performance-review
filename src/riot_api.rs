@@ -1,5 +1,5 @@
 use crate::{fetcher::FetchStatus, ApiRegion, Player, Result, State};
-use cached::proc_macro::io_cached;
+use cached::proc_macro::{cached, io_cached};
 use chrono::{DateTime, Utc};
 use log::info;
 use serde_json::Value;
@@ -85,6 +85,12 @@ pub async fn get_match_timeline(
         .await
 }
 
+#[cached(
+    result = true,
+    time = 300, // 5 minutes
+    key = "String",
+    convert = r#"{ format!("{region}#{puuid}#{end:?}") }"#,
+)]
 pub async fn get_match_history(
     state: &State,
     region: ApiRegion,
