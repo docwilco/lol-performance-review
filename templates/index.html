@@ -3,9 +3,72 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Input Combiner</title>
+        <title>LoL Performance Tool</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f5f5f5;
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .tab-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+                height: 100%;
+                width: 100%;
+            }
+            .tab-buttons {
+                display: flex;
+                border-bottom: 1px solid #ccc;
+            }
+            .tab-buttons .tab {
+                padding: 10px 20px;
+                cursor: pointer;
+                border: 1px solid #ccc;
+                border-bottom: none;
+                background-color: #f1f1f1;
+                margin-right: 5px;
+            }
+            .tab-buttons .tab.active {
+                background-color: #fff;
+                border-top: 2px solid #007bff;
+                border-bottom: 1px solid #fff;
+            }
+            .tab-buttons, .tab-content {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            .tab-content {
+                display: none;
+                padding: 20px;
+                border: 1px solid #ccc;
+                border-top: none;
+                background-color: white;
+            }
+            .tab-content.active {
+                display: block;
+            }
+            .form-container {
+                display: flex;
+                justify-content: space-between;
+            }
+            .form-column {
+                flex: 1;
+                margin: 0 10px;
+            }
+            .form-column h2 {
+                text-align: center;
+            }
+        </style>
         <script>
-            function combineInputs() {
+            function combineInputsStats() {
                 let region = document.getElementById("region").value;
                 let gameName = document.getElementById("gameName").value;
                 let tagLine = document.getElementById("tagLine").value;
@@ -16,40 +79,115 @@
 
                 window.location.href = combinedURL;
             }
+            function combineInputsCompare() {
+                let regionP1 = document.getElementById("region-p1").value;
+                let gameNameP1 = document.getElementById("gameName-p1").value;
+                let tagLineP1 = document.getElementById("tagLine-p1").value;
+                let regionP2 = document.getElementById("region-p2").value;
+                let gameNameP2 = document.getElementById("gameName-p2").value;
+                let tagLineP2 = document.getElementById("tagLine-p2").value;
+
+                let combinedURL = "/compare/" + encodeURIComponent(regionP1) +
+                                "/" + encodeURIComponent(gameNameP1) +
+                                "/" + encodeURIComponent(tagLineP1) +
+                                "/vs/" + encodeURIComponent(regionP2) +
+                                "/" + encodeURIComponent(gameNameP2) +
+                                "/" + encodeURIComponent(tagLineP2);
+
+                window.location.href = combinedURL;
+            }
+            function showTab(tabIndex) {
+                let tabs = document.querySelectorAll('.tab');
+                let contents = document.querySelectorAll('.tab-content');
+                tabs.forEach((tab, index) => {
+                    tab.classList.toggle('active', index === tabIndex);
+                    contents[index].classList.toggle('active', index === tabIndex);
+                });
+            }
         </script>
     </head>
     <body>
-        <h1></h1>
-        <form id="player-selection">
-            <label for="region">Region:</label>
-            <select id="region">
-                {% for region in regions %}
-                <option value="{{ region }}">{{ region }}</option>
-                {% endfor %}
-            </select>
-            <br>
-            <br>
-            <label for="gameName">Game Name:</label>
-            <input type="text" id="gameName">
-            <br>
-            <br>
-            <label for="tagLine">Tag Line:</label>
-            <input type="text" id="tagLine">
-            <br>
-            <br>
-            <button id="go-button">Go</button>
-        </form>
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <div class="tab active" onclick="showTab(0)">Stats</div>
+                <div class="tab" onclick="showTab(1)">Compare</div>
+            </div>
+            <div class="tab-content active">
+                <form id="player-selection-stats">
+                    <label for="region">Region:</label>
+                    <select id="region">
+                        {% for region in regions %}
+                        <option value="{{ region }}">{{ region }}</option>
+                        {% endfor %}
+                    </select>
+                    <br>
+                    <br>
+                    <label for="gameName">Game Name:</label>
+                    <input type="text" id="gameName">
+                    <br>
+                    <br>
+                    <label for="tagLine">Tag Line:</label>
+                    <input type="text" id="tagLine">
+                    <br>
+                    <br>
+                    <button type="button" onclick="combineInputsStats()">Go</button>
+                </form>
+            </div>
+            <div class="tab-content">
+                <form id="player-selection-compare">
+                    <div class="form-container">
+                        <div class="form-column">
+                            <h2>Player 1</h2>
+                            <label for="region-p1">Region:</label>
+                            <select id="region-p1">
+                                {% for region in regions %}
+                                <option value="{{ region }}">{{ region }}</option>
+                                {% endfor %}
+                            </select>
+                            <br>
+                            <br>
+                            <label for="gameName-p1">Game Name:</label>
+                            <input type="text" id="gameName-p1">
+                            <br>
+                            <br>
+                            <label for="tagLine-p1">Tag Line:</label>
+                            <input type="text" id="tagLine-p1">
+                        </div>
+                        <div class="form-column">
+                            <h2>Player 2</h2>
+                            <label for="region-p2">Region:</label>
+                            <select id="region-p2">
+                                {% for region in regions %}
+                                <option value="{{ region }}">{{ region }}</option>
+                                {% endfor %}
+                            </select>
+                            <br>
+                            <br>
+                            <label for="gameName-p2">Game Name 2:</label>
+                            <input type="text" id="gameName-p2">
+                            <br>
+                            <br>
+                            <label for="tagLine-p2">Tag Line 2:</label>
+                            <input type="text" id="tagLine-p2">
+                        </div>
+                    </div>
+                    <br>
+                    <br>
+                    <button type="button" onclick="combineInputsCompare()">Go</button>
+                </form>
+            </div>
+        </div>
         <script>
             let goButton = document.getElementById('go-button');
             goButton.addEventListener('click', function(event) {
                 event.preventDefault();
-                combineInputs();
+                combineInputsStats();
             }); 
-            let form = document.getElementById('player-selection'); 
+            let form = document.getElementById('player-selection-stats'); 
             goButton.addEventListener('keypress', function(event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    combineInputs();
+                    combineInputsStats();
                 }
             });
         </script>
