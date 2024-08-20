@@ -1,6 +1,6 @@
 use crate::{internal_server_error, LeagueRegion};
 use actix_files::NamedFile;
-use actix_web::{get, Responder, Result as ActixResult};
+use actix_web::{get, routes, Responder, Result as ActixResult};
 use askama_actix::Template;
 use strum::IntoEnumIterator;
 
@@ -26,7 +26,9 @@ pub async fn index() -> ActixResult<impl Responder> {
     .insert_header(("content-type", "text/html")))
 }
 
+#[routes]
 #[get("/riot.txt")]
+#[get("//riot.txt")]
 pub async fn riot_txt() -> ActixResult<NamedFile> {
     NamedFile::open_async("riot.txt")
         .await
