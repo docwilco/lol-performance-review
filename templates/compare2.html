@@ -360,17 +360,17 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
     <body>
         <div class="bodydiv">
             <div class="tab">
-                {% for week_number in week_numbers %}
-                <button class="tablinks" onclick="openTab('week{{ week_number }}')" id="week{{ week_number }}link">Week {{ week_number }}</button>
+                {% for (group_title, group_id) in group_titles_and_ids %}
+                <button class="tablinks" onclick="openTab('{{ group_id }}')" id="{{ group_id }}link">{{ group_title }}</button>
                 {% endfor %}
             </div>
-            {% for week_number in week_numbers %}
-            <div id="week{{ week_number }}" class="tabcontent">
+            {% for (group_title, group_id) in group_titles_and_ids %}
+            <div id="{{ group_id }}" class="tabcontent">
                 <h1>{% call title(players[0], players[1], role, champion) %}</h1>
-                <h2>Week {{ week_number }}</h2>
+                <h2>{{ group_title }}</h2>
                 <div class="stats-and-graphs">
                     <div class="hidden-stats-table">
-                        <table id="hidden-stats-table-week{{ week_number }}">
+                        <table id="hidden-stats-table-{{ group_id }}">
                             <tr>
                                 <th>&nbsp;</th>
                                 <th>Wins</th>
@@ -393,41 +393,41 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                             {% for player in players %}
                             <tr>
                                 <th>{{ player.game_name }}#{{ player.tag_line }}</th>
-                                {% if let Some(week) = Self::get_week(self, player, week_number) %}
-                                <td>{{ week.wins }}</td>
-                                <td>{{ week.losses }}</td>
-                                <td>{{ week.games_played }}</td>
-                                <td>{% call percent_float_with_diff(week.winrate) %}</td>
+                                {% if let Some(group) = Self::get_group(self, player, group_id) %}
+                                <td>{{ group.wins }}</td>
+                                <td>{{ group.losses }}</td>
+                                <td>{{ group.games_played }}</td>
+                                <td>{% call percent_float_with_diff(group.winrate) %}</td>
                                 <td>
-                                    {% call float_with_diff(week.kills) %}
-                                / {% call float_with_diff(week.deaths) %}
-                                / {% call float_with_diff(week.assists) %}
-                                ( {% call float_with_diff(week.kda) %} )
+                                    {% call float_with_diff(group.kills) %}
+                                / {% call float_with_diff(group.deaths) %}
+                                / {% call float_with_diff(group.assists) %}
+                                ( {% call float_with_diff(group.kda) %} )
                                 </td>
-                                <td>{% call float_with_diff(week.cs_per_minute) %}</td>
-                                <td>{% call percent_float_with_diff(week.gold_share) %}</td>
-                                <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
-                                <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
-                                <td>{% call percent_float_with_diff(week.vision_share) %}</td>
-                                <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
-                                <td>{% call float_with_diff(week.solo_kills) %}</td>
-                                <td>{% call float_with_diff(week.solo_deaths) %}</td>
+                                <td>{% call float_with_diff(group.cs_per_minute) %}</td>
+                                <td>{% call percent_float_with_diff(group.gold_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.champion_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.objective_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.vision_share) %}</td>
+                                <td>{% call float_with_diff(group.vision_score_per_minute) %}</td>
+                                <td>{% call float_with_diff(group.solo_kills) %}</td>
+                                <td>{% call float_with_diff(group.solo_deaths) %}</td>
                                 <td>
-                                    {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
+                                    {% if let Some(legendary) = group.legendary_buy_times.get(0) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
                                 {% endif %}
                                 </td>
                                 <td>
-                                    {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
+                                    {% if let Some(legendary) = group.legendary_buy_times.get(1) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
                                 {% endif %}
                                 </td>
                                 <td>
-                                    {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
+                                    {% if let Some(legendary) = group.legendary_buy_times.get(2) %}
                                 {% call timedelta_with_diff(legendary) %}
                                 {% else %}
                                 -
@@ -455,19 +455,19 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                             {% endfor %}
                         </table>
                     </div>
-                    <div class="stats-table" id="pivoted-stats-table-week{{ week_number }}"></div>
+                    <div class="stats-table" id="pivoted-stats-table-{{ group_id }}"></div>
                     <div class="graphs">
                         <div>
-                            <canvas id="cpm_graph_week{{week_number}}"></canvas>
+                            <canvas id="cpm_graph_{{ group_id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="csd_graph_week{{week_number}}"></canvas>
+                            <canvas id="csd_graph_{{ group_id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="ld_graph_week{{week_number}}"></canvas>
+                            <canvas id="ld_graph_{{ group_id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="gd_graph_week{{week_number}}"></canvas>
+                            <canvas id="gd_graph_{{ group_id }}"></canvas>
                         </div>
                     </div>
                 </div>
@@ -555,20 +555,26 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             }
             // Wait for the document to load before showing Tab 1
             document.addEventListener("DOMContentLoaded", function() {
-                if (window.location.hash.startsWith('#week')) {
-                    openTab(window.location.hash.substring(1));
+                let tabnames = [
+                    {% for (_, group_id) in group_titles_and_ids %}
+                        '{{ group_id }}',
+                    {% endfor %}
+                ];
+                hashId = window.location.hash.substring(1);
+                if (window.location.hash.startsWith('#') && tabnames.includes(hashId)) {
+                    openTab(hashId);
                 } else {
-                    openTab('week1');
+                    openTab(tabnames[0]);
                 }
             });
     </script>
     <script>
-        function pivotTable(week_number) {
-            const statsTableContainer = document.getElementById(`pivoted-stats-table-week${week_number}`);
+        function pivotTable(id) {
+            const statsTableContainer = document.getElementById(`pivoted-stats-table-${id}`);
             if (statsTableContainer === null) {
                 return;
             }
-            const oldTable = document.getElementById(`hidden-stats-table-week${week_number}`);
+            const oldTable = document.getElementById(`hidden-stats-table-${id}`);
             if (oldTable === null) {
                 return;
             }
@@ -595,14 +601,14 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
 
         }
         document.addEventListener("DOMContentLoaded", function() {
-            {% for week_number in week_numbers %}
-            pivotTable({{ week_number }});
+            {% for (_, group_id) in group_titles_and_ids %}
+            pivotTable('{{ group_id }}');
             {% endfor %}
         });
     </script>
     <script>
-        function make_chart(type, title, week_number, data) {
-            let canvas = document.getElementById(`${type}_graph_week${week_number}`);
+        function make_chart(type, title, id, data) {
+            let canvas = document.getElementById(`${type}_graph_${id}`);
             let datasets = [
                 {
                     borderColor: 'rgba(54, 162, 235, 1)',
@@ -656,39 +662,39 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             let csd_data;
             let ld_data;
             let gd_data;
-            {% for week_number in week_numbers %}
+            {% for (_, group_id) in group_titles_and_ids %}
                 cpm_data = [];
                 csd_data = [];
                 ld_data = [];
                 gd_data = [];
                 {% for player in players %}
-                    {% if let Some(week) = Self::get_week(self, player, week_number) %}
+                    {% if let Some(group) = Self::get_group(self, player, group_id) %}
                     cpm_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
-                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {% for (minute, minute_stats) in group.at_minute_stats %}
                         {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
                         {% endfor %}
                     ]]);
                     csd_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
-                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {% for (minute, minute_stats) in group.at_minute_stats %}
                         {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
                         {% endfor %}
                     ]]);
                     ld_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
-                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {% for (minute, minute_stats) in group.at_minute_stats %}
                         {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
                         {% endfor %}
                     ]]);
                     gd_data.push(['{{player.game_name}}#{{player.tag_line}}' ,[
-                        {% for (minute, minute_stats) in week.at_minute_stats %}
+                        {% for (minute, minute_stats) in group.at_minute_stats %}
                         {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
                         {% endfor %}
                     ]]);
                     {% endif %}
                 {% endfor %}
-                make_chart('cpm', 'CS/min', {{ week_number }}, cpm_data);
-                make_chart('csd', 'CS Diff', {{ week_number }}, csd_data);
-                make_chart('ld', 'Level Diff', {{ week_number }}, ld_data);
-                make_chart('gd', 'Gold Diff', {{ week_number }}, gd_data);
+                make_chart('cpm', 'CS/min', '{{ group_id }}', cpm_data);
+                make_chart('csd', 'CS Diff', '{{ group_id }}', csd_data);
+                make_chart('ld', 'Level Diff', '{{ group_id }}', ld_data);
+                make_chart('gd', 'Gold Diff', '{{ group_id }}', gd_data);
             {% endfor %}
         });
     </script>

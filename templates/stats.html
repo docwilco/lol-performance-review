@@ -322,70 +322,70 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
     <body>
         <div class="bodydiv">
             <div class="tab">
-                {% for week in weeks %}
-                <button class="tablinks" onclick="openTab('week{{ week.number }}')" id="week{{ week.number }}link">Week {{ week.number }}</button>
+                {% for group in groups %}
+                <button class="tablinks" onclick="openTab('{{ group.id }}')" id="{{ group.id }}link">{{ group.title }}</button>
                 {% endfor %}
             </div>
-            {% for week in weeks %}
-            <div id="week{{ week.number }}" class="tabcontent">
+            {% for group in groups %}
+            <div id="{{ group.id }}" class="tabcontent">
                 <h1>{% call title(player, role, champion) %}</h1>
-                <h2>Week {{ week.number }}</h2>
+                <h2>{{ group.title }}</h2>
                 <div class="stats-and-graphs">
                     <div class="stats-table">
                         <table>
                             <tr>
                                 <td>Wins</td>
-                                <td>{{ week.wins }}</td>
+                                <td>{{ group.wins }}</td>
                             </tr>
                             <tr>
                                 <td>Losses</td>
-                                <td>{{ week.losses }}</td>
+                                <td>{{ group.losses }}</td>
                             </tr>
                             <tr>
                                 <td>Games played</td>
-                                <td>{{ week.games_played }}</td>
+                                <td>{{ group.games_played }}</td>
                             </tr>
                             <tr>
                                 <td>Win rate</td>
-                                <td>{% call percent_float_with_diff(week.winrate) %}</td>
+                                <td>{% call percent_float_with_diff(group.winrate) %}</td>
                             </tr>
                             <tr>
                                 <td>KDA</td>
-                                <td>{% call float_with_diff(week.kills) %} / {% call float_with_diff(week.deaths) %} / {% call float_with_diff(week.assists) %} ({% call float_with_diff(week.kda) %})</td>
+                                <td>{% call float_with_diff(group.kills) %} / {% call float_with_diff(group.deaths) %} / {% call float_with_diff(group.assists) %} ({% call float_with_diff(group.kda) %})</td>
                             </tr>
                             <tr>
                                 <td>CS/min</td>
-                                <td>{% call float_with_diff(week.cs_per_minute) %}</td>
+                                <td>{% call float_with_diff(group.cs_per_minute) %}</td>
                             </tr>
                             <tr>
                                 <td>Gold share</td>
-                                <td>{% call percent_float_with_diff(week.gold_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.gold_share) %}</td>
                             </tr>
                             <tr>
                                 <td>Champion Damage Share</td>
-                                <td>{% call percent_float_with_diff(week.champion_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.champion_damage_share) %}</td>
                             </tr>
                             <tr>
                                 <td>Objective Damage Share</td>
-                                <td>{% call percent_float_with_diff(week.objective_damage_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.objective_damage_share) %}</td>
                             </tr>
                             <tr>
                                 <td>Vision Share</td>
-                                <td>{% call percent_float_with_diff(week.vision_share) %}</td>
+                                <td>{% call percent_float_with_diff(group.vision_share) %}</td>
                             </tr>
                             <tr>
                                 <td>Vision Score/min</td>
-                                <td>{% call float_with_diff(week.vision_score_per_minute) %}</td>
+                                <td>{% call float_with_diff(group.vision_score_per_minute) %}</td>
                             </tr>
                             <tr>
                                 <td>Solo Kills</td>
-                                <td>{% call float_with_diff(week.solo_kills) %}</td>
+                                <td>{% call float_with_diff(group.solo_kills) %}</td>
                             </tr>
                             <tr>
                                 <td>Solo Deaths</td>
-                                <td>{% call float_with_diff(week.solo_deaths) %}</td>
+                                <td>{% call float_with_diff(group.solo_deaths) %}</td>
                             </tr>
-                            {% if let Some(legendary) = week.legendary_buy_times.get(0) %}
+                            {% if let Some(legendary) = group.legendary_buy_times.get(0) %}
                             <tr>
                                 <td>1st Legendary Item</td>
                                 <td>
@@ -393,7 +393,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                                 </td>
                             </tr>
                             {% endif %}
-                        {% if let Some(legendary) = week.legendary_buy_times.get(1) %}
+                        {% if let Some(legendary) = group.legendary_buy_times.get(1) %}
                             <tr>
                                 <td>2nd Legendary Item</td>
                                 <td>
@@ -401,7 +401,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                                 </td>
                             </tr>
                             {% endif %}
-                        {% if let Some(legendary) = week.legendary_buy_times.get(2) %}
+                        {% if let Some(legendary) = group.legendary_buy_times.get(2) %}
                             <tr>
                                 <td>3rd Legendary Item</td>
                                 <td>
@@ -413,25 +413,25 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                     </div>
                     <div class="graphs">
                         <div>
-                            <canvas id="cpm_graph_week{{week.number}}"></canvas>
+                            <canvas id="cpm_graph_{{ group.id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="csd_graph_week{{week.number}}"></canvas>
+                            <canvas id="csd_graph_{{ group.id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="ld_graph_week{{week.number}}"></canvas>
+                            <canvas id="ld_graph_{{ group.id }}"></canvas>
                         </div>
                         <div>
-                            <canvas id="gd_graph_week{{week.number}}"></canvas>
+                            <canvas id="gd_graph_{{ group.id }}"></canvas>
                         </div>
                     </div>
                 </div>
                 {% if champion.is_none() %}
                 <h2>Champion performance</h2>
                 <div class="champs-table">
-                    {% for (role, per_champ) in week.per_role_per_champ %}
+                    {% for (role, per_champ) in group.per_role_per_champ %}
                     <h3>
-                        <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#week{{ week.number }}">{{ role }}</a>
+                        <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
                     </h3>
                     <table>
                         <thead>
@@ -447,7 +447,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             {% for (champion, normalized_champion, champion_stats) in per_champ %}
                             <tr>
                                 <td>
-                                    <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}/{{ normalized_champion }}#week{{ week.number }}">{{ champion }}</a>
+                                    <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}/{{ normalized_champion }}#{{ group.id }}">{{ champion }}</a>
                                 </td>
                                 <td>{{ champion_stats.games_played }}</td>
                                 <td>{% call percent_float_with_diff(champion_stats.winrate) %}</td>
@@ -462,9 +462,9 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 {% endif %}
                 <h2>Performance versus enemy champions</h2>
                 <div class="enemy-table">
-                    {% for (role, per_champ) in week.per_role_per_enemy %}
+                    {% for (role, per_champ) in group.per_role_per_enemy %}
                     <h3>
-                        <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#week{{ week.number }}">{{ role }}</a>
+                        <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
                     </h3>
                     <table>
                         <thead>
@@ -491,11 +491,12 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                     {% endfor %}
                 </div>
                 <div class="all-heatmaps-container">
-                    {% for (role, side, count, data) in week.heatmap_data %}
+                    {% let group_index = loop.index %}
+                    {% for (role, side, count, data) in group.heatmap_data %}
                     <div class="heatmap-container">
                         <h4>{{ role }} on the {{ side }} side ({{ count}}x)</h4>
-                        <div id="heatmap_{{ week.number }}_{{role}}_{{side}}" class="heatmap">
-                            <p id="heatmap_text_{{ week.number }}_{{role}}_{{side}}"></p>
+                        <div id="heatmap_{{ group_index }}_{{role}}_{{side}}" class="heatmap">
+                            <p id="heatmap_text_{{ group_index }}_{{role}}_{{side}}"></p>
                         </div>
                     </div>
                     {% endfor %}
@@ -584,43 +585,44 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             }
             // Wait for the document to load before showing Tab 1
             document.addEventListener("DOMContentLoaded", function() {
-                if (window.location.hash.startsWith('#week')) {
-                    openTab(window.location.hash.substring(1));
+                let tabnames = [
+                    {% for group in groups %}
+                        '{{ group.id }}',
+                    {% endfor %}
+                ];
+                hashId = window.location.hash.substring(1);
+                if (window.location.hash.startsWith('#') && tabnames.includes(hashId)) {
+                    openTab(hashId);
                 } else {
-                    let tabnum = 1;
-                    while (true) {
-                        let tabid = 'week' + tabnum;
-                        if (document.getElementById(tabid) !== null) {
-                            openTab(tabid);
-                            break;
-                        }
-                        tabnum++;
-                    }
+                    openTab(tabnames[0]);
                 }
             });
     </script>
     <script>
             var heatmapInstances = {
-                {% for week in weeks %}
-                    {% for (role, side, count, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': h337.create({
-                            container: document.getElementById('heatmap_{{ week.number }}_{{role}}_{{side}}'),
+                {% for group in groups %}
+                    {% let group_index = loop.index %}
+                    {% for (role, side, count, data) in group.heatmap_data %}
+                        '{{ group_index }}_{{role}}_{{side}}': h337.create({
+                            container: document.getElementById('heatmap_{{ group_index }}_{{role}}_{{side}}'),
                             radius: 15,
                         }),
                     {% endfor %}
                 {% endfor %}
             };
             var heatmapTexts = {
-                {% for week in weeks %}
-                    {% for (role, side, count, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': document.getElementById('heatmap_text_{{ week.number }}_{{role}}_{{side}}'),
+                {% for group in groups %}
+                    {% let group_index = loop.index %}
+                    {% for (role, side, count, data) in group.heatmap_data %}
+                        '{{ group_index }}_{{role}}_{{side}}': document.getElementById('heatmap_text_{{ group_index }}_{{role}}_{{side}}'),
                     {% endfor %}
                 {% endfor %}
             };
             var heatmapData = {
-                {% for week in weeks %}
-                    {% for (role, side, count, data) in week.heatmap_data %}
-                        '{{ week.number }}_{{role}}_{{side}}': JSON.parse('{{ data }}'),
+                {% for group in groups %}
+                    {% let group_index = loop.index %}
+                    {% for (role, side, count, data) in group.heatmap_data %}
+                        '{{ group_index }}_{{role}}_{{side}}': JSON.parse('{{ data }}'),
                     {% endfor %}
                 {% endfor %}
             };
@@ -773,8 +775,8 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             });
     </script>
     <script>
-        function make_chart(type, title, week_number, data) {
-            let canvas = document.getElementById(`${type}_graph_week${week_number}`);
+        function make_chart(type, title, id, data) {
+            let canvas = document.getElementById(`${type}_graph_${id}`);
             let datasets = [
                 {
                     borderColor: 'rgba(54, 162, 235, 1)',
@@ -828,28 +830,28 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             let csd_data;
             let ld_data;
             let gd_data;
-            {% for week in weeks %}
+            {% for group in groups %}
                 cpm_data = [[
-                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {% for (minute, minute_stats) in group.at_minute_stats %}
                     {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
                     {% endfor %}
                 ]];
                 csd_data = [[
-                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {% for (minute, minute_stats) in group.at_minute_stats %}
                     {x: {{ minute }}, y: {{ minute_stats.cs_diff }}},
                     {% endfor %}
                 ]];
                 ld_data = [[
-                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {% for (minute, minute_stats) in group.at_minute_stats %}
                     {x: {{ minute }}, y: {{ minute_stats.level_diff }}},
                     {% endfor %}
                 ]];
                 gd_data = [[
-                    {% for (minute, minute_stats) in week.at_minute_stats %}
+                    {% for (minute, minute_stats) in group.at_minute_stats %}
                     {x: {{ minute }}, y: {{ minute_stats.gold_diff }}},
                     {% endfor %}
                 ]];
-                {% if let Some(previous_at_minute_stats) = week.previous_at_minute_stats %}                    
+                {% if let Some(previous_at_minute_stats) = group.previous_at_minute_stats %}                    
                     cpm_data.push([
                         {% for (minute, minute_stats) in previous_at_minute_stats %}
                         {x: {{ minute }}, y: {{ minute_stats.cs_per_minute }}},
@@ -871,10 +873,10 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                         {% endfor %}
                     ]);
                 {% endif %}
-                make_chart('cpm', 'CS/min', {{ week.number }}, cpm_data);
-                make_chart('csd', 'CS Diff', {{ week.number }}, csd_data);
-                make_chart('ld', 'Level Diff', {{ week.number }}, ld_data);
-                make_chart('gd', 'Gold Diff', {{ week.number }}, gd_data);
+                make_chart('cpm', 'CS/min', '{{ group.id }}', cpm_data);
+                make_chart('csd', 'CS Diff', '{{ group.id }}', csd_data);
+                make_chart('ld', 'Level Diff', '{{ group.id }}', ld_data);
+                make_chart('gd', 'Gold Diff', '{{ group.id }}', gd_data);
             {% endfor %}
         });
     </script>

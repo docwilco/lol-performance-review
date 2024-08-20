@@ -1,5 +1,5 @@
 use crate::{
-    calculations::WeekStats,
+    calculations::GroupStats,
     fetcher::{check_or_start_fetching, RedirectOrContinue},
     internal_server_error,
     riot_api::json::Role,
@@ -21,15 +21,15 @@ struct DisplayData {
     players: [Player; 2],
     role: Option<Role>,
     champion: Option<String>,
-    data: HashMap<(Player, i64), WeekStats>,
-    week_numbers: Vec<i64>,
+    data: HashMap<(Player, String), GroupStats>,
+    group_titles_and_ids: Vec<(String, String)>,
 }
 
 impl DisplayData {
     // We have to pass by ref, because that's what Askama generates
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    fn get_week<'a>(&'a self, player: &Player, week: &&i64) -> Option<&'a WeekStats> {
-        self.data.get(&(player.clone(), **week))
+    fn get_group<'a>(&'a self, player: &Player, name: &&String) -> Option<&'a GroupStats> {
+        self.data.get(&(player.clone(), (*name).to_string()))
     }
 }
 
@@ -71,20 +71,20 @@ async fn do_player(
     player: &mut Player,
     role: Option<Role>,
     champion: &Option<String>,
-    week_numbers: &mut HashSet<i64>,
-) -> ActixResult<HashMap<(Player, i64), WeekStats>> {
-    let weeks = crate::calculations::calc_stats(state.clone(), player, role, champion.as_deref())
+    group_titles_and_ids: &mut HashSet<(String, String)>,
+) -> ActixResult<HashMap<(Player, String), GroupStats>> {
+    let groups = crate::calculations::calc_stats(state.clone(), player, role, champion.as_deref())
         .await
         .map_err(internal_server_error)?;
-    for week in &weeks {
-        week_numbers.insert(week.number);
+    for group in &groups {
+        group_titles_and_ids.insert((group.title.clone(), group.id.clone()));
     }
-    let pd = weeks
+    Ok(groups
         .into_iter()
-        .map(|week| ((player.clone(), week.number), week))
-        .collect::<HashMap<_, _>>();
-    Ok(pd)
+        .map(|week| ((player.clone(), week.id.clone()), week))
+        .collect::<HashMap<_, _>>())
 }
+
 #[routes]
 #[get("/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}")]
 #[get("/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}/{role}")]
@@ -95,7 +95,6 @@ pub async fn page2(
     path: web::Path<Params2>,
 ) -> ActixResult<impl Responder> {
     let (mut p1, mut p2, role, champion) = path.into_inner().into();
-    let mut week_numbers = HashSet::new();
     for player in [&p1, &p2] {
         debug!("Getting stats for {player} in {role:?} as {champion:?}");
         if let RedirectOrContinue::Redirect(redirect) =
@@ -106,27 +105,49 @@ pub async fn page2(
             return Ok(Either::Left(redirect));
         }
     }
-    let mut p1d = do_player(state.clone(), &mut p1, role, &champion, &mut week_numbers)
-        .await
-        .map_err(internal_server_error)?;
-    let p2d = do_player(state.clone(), &mut p2, role, &champion, &mut week_numbers)
-        .await
-        .map_err(internal_server_error)?;
-    for ((p1, week_number), p1_week) in &mut p1d {
-        if let Some(p2_week) = p2d.get(&(p2.clone(), *week_number)) {
-            debug!("Comparing {p1} and {p2} in week {week_number}");
+    let mut group_titles_and_ids = HashSet::new();
+    let mut p1d = do_player(
+        state.clone(),
+        &mut p1,
+        role,
+        &champion,
+        &mut group_titles_and_ids,
+    )
+    .await
+    .map_err(internal_server_error)?;
+    let p2d = do_player(
+        state.clone(),
+        &mut p2,
+        role,
+        &champion,
+        &mut group_titles_and_ids,
+    )
+    .await
+    .map_err(internal_server_error)?;
+    for ((p1, group_name), p1_week) in &mut p1d {
+        if let Some(p2_week) = p2d.get(&(p2.clone(), group_name.clone())) {
+            debug!("Comparing {p1} and {p2} in {group_name}");
             p1_week.compare_to(p2_week);
         }
     }
     let mut data = p1d;
     data.extend(p2d);
+
+    let mut group_titles_and_ids = group_titles_and_ids
+        .into_iter()
+        .sorted()
+        .collect::<Vec<_>>();
+    // Pop Total off the front and put it at the end
+    let total = group_titles_and_ids.remove(0);
+    group_titles_and_ids.push(total);
+
     Ok(Either::Right(
         DisplayData {
             players: [p1, p2],
             role,
             champion,
             data,
-            week_numbers: week_numbers.into_iter().sorted().collect(),
+            group_titles_and_ids,
         }
         .customize()
         .insert_header(("content-type", "text/html")),

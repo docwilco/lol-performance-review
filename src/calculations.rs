@@ -196,8 +196,9 @@ impl Display for DisplayTimeDelta {
 }
 
 #[derive(Clone, Debug)]
-pub struct WeekStats {
-    pub number: i64,
+pub struct GroupStats {
+    pub title: String,
+    pub id: String,
     pub wins: u32,
     pub losses: u32,
     pub games_played: u32,
@@ -223,7 +224,7 @@ pub struct WeekStats {
     pub per_role_per_enemy: Vec<(Role, DisplayChampMatches)>,
 }
 
-impl WeekStats {
+impl GroupStats {
     pub fn compare_to(&mut self, other: &Self) {
         self.winrate.compare_to(&other.winrate);
         self.kills.compare_to(&other.kills);
@@ -279,7 +280,7 @@ impl WeekStats {
 pub type HeatMapData = Vec<(Role, Side, usize, String)>;
 type HeatMapDataGathering = HashMap<(Role, Side), HashMap<i64, Vec<json::Point>>>;
 type ChampMatches<'a> = Vec<(String, Vec<&'a Match>)>;
-type DisplayChampMatches = Vec<(String, String, WeekStats)>;
+type DisplayChampMatches = Vec<(String, String, GroupStats)>;
 
 fn median<'a, T>(values: impl IntoIterator<Item = &'a T>) -> f64
 where
@@ -692,7 +693,7 @@ fn add_legendary_buys(
         });
 }
 
-fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
+fn convert_stats(title: &str, gathered: WeekStatsGathering) -> GroupStats {
     let at_minute_stats = MINUTES_AT
         .filter_map(|minute| {
             let stats_at = gathered.stats_at.get(&minute)?;
@@ -742,8 +743,9 @@ fn convert_stats(week_number: i64, gathered: WeekStatsGathering) -> WeekStats {
         .into_iter()
         .map(|nth| DisplayTimeDelta::from(median_td(&nth)))
         .collect();
-    WeekStats {
-        number: week_number,
+    GroupStats {
+        title: title.to_string(),
+        id: title.to_lowercase().replace(' ', ""),
         wins: gathered.wins,
         losses: gathered.losses,
         winrate: (100.0 * f64::from(gathered.wins) / f64::from(gathered.wins + gathered.losses))
@@ -806,6 +808,7 @@ fn matches_by_role_champ<'a>(
         })
         .collect()
 }
+
 fn matches_by_role_enemy<'a>(
     matches: impl IntoIterator<Item = &'a &'a json::Match>,
     puuid: &'a str,
@@ -865,7 +868,7 @@ pub async fn calc_stats(
     player: &mut Player,
     role: Option<Role>,
     champion: Option<&str>,
-) -> Result<Vec<WeekStats>> {
+) -> Result<Vec<GroupStats>> {
     let from = Utc::now() - chrono::Duration::weeks(NUM_WEEKS);
     debug!("Getting puuid");
     let puuid = get_puuid_and_canonical_name(&state, player).await?;
@@ -874,82 +877,120 @@ pub async fn calc_stats(
     debug!("Calculating stats");
     let now = Utc::now();
     let player_matches = state.matches_per_puuid.get(&puuid).unwrap();
-    Ok(player_matches
-        .iter()
-        .filter(|(_, m)| {
-            let champ_match = champion.map_or(true, |champion| {
-                m.info.participants.iter().any(|p| {
-                    p.puuid == puuid && normalize_champion_name(&p.champion_name) == champion
-                })
-            });
-            let role_match = role.map_or(true, |role| {
-                m.info
-                    .participants
-                    .iter()
-                    .any(|p| p.puuid == puuid && p.team_position == role)
-            });
-            champ_match
-                && role_match
-                && m.info.game_mode == "CLASSIC"
-                && m.info.game_duration > TimeDelta::minutes(5)
-                && m.info.game_start_timestamp > from
-        })
-        .sorted_by_key(|(_, m)| m.info.game_start_timestamp)
-        .chunk_by(|(_, m)| (now - m.info.game_start_timestamp).num_weeks())
+    let all_matches = player_matches.iter().filter_map(|(_, m)| {
+        let champ_match = champion.map_or(true, |champion| {
+            m.info
+                .participants
+                .iter()
+                .any(|p| p.puuid == puuid && normalize_champion_name(&p.champion_name) == champion)
+        });
+        let role_match = role.map_or(true, |role| {
+            m.info
+                .participants
+                .iter()
+                .any(|p| p.puuid == puuid && p.team_position == role)
+        });
+        if champ_match
+            && role_match
+            && m.info.game_mode == "CLASSIC"
+            && m.info.game_duration > TimeDelta::minutes(5)
+            && m.info.game_start_timestamp > from {
+            Some(m)
+        } else {
+            None
+        }
+    }).collect::<Vec<_>>();
+    let mut group_stats = all_matches.clone()
+        .into_iter()
+        .sorted_by_key(|m| m.info.game_start_timestamp)
+        .chunk_by(|m| (now - m.info.game_start_timestamp).num_weeks())
         .into_iter()
         .map(|(weeks_ago, matches)| {
-            let matches = matches.map(|(_, m)| m).collect::<Vec<_>>();
+            let matches = matches.collect::<Vec<_>>();
             let week_stats = gather_stats(&state, &matches, &puuid);
-            let mut display_stats = convert_stats(NUM_WEEKS - weeks_ago, week_stats);
+            let title = format!("Week {}", NUM_WEEKS - weeks_ago);
+            let mut display_stats = convert_stats(&title, week_stats);
             if champion.is_none() {
-                display_stats.per_role_per_champ = matches_by_role_champ(&matches, &puuid)
-                    .into_iter()
-                    .filter_map(|(by_role, champ_map)| {
-                        if role.is_some() && role != Some(by_role) {
-                            return None;
-                        }
-                        Some((
-                            by_role,
-                            champ_map
-                                .into_iter()
-                                .map(|(champ, champ_matches)| {
-                                    let normalized_champ = normalize_champion_name(&champ);
-                                    let role_champ_stats =
-                                        gather_stats(&state, &champ_matches, &puuid);
-                                    let role_champ_display_stats =
-                                        convert_stats(NUM_WEEKS - weeks_ago, role_champ_stats);
-                                    (champ, normalized_champ, role_champ_display_stats)
-                                })
-                                .collect(),
-                        ))
-                    })
-                    .collect();
+                display_stats.per_role_per_champ =
+                    per_role_per_champ(&matches, &puuid, role, &state, &title);
             }
-            display_stats.per_role_per_enemy = matches_by_role_enemy(&matches, &puuid)
-                .into_iter()
-                .filter_map(|(by_role, champ_map)| {
-                    if role.is_some() && role != Some(by_role) {
-                        return None;
-                    }
-                    Some((
-                        by_role,
-                        champ_map
-                            .into_iter()
-                            .map(|(enemy, enemy_matches)| {
-                                let normalized_enemy = normalize_champion_name(&enemy);
-                                let role_enemy_stats = gather_stats(&state, &enemy_matches, &puuid);
-                                let role_enemy_display_stats =
-                                    convert_stats(NUM_WEEKS - weeks_ago, role_enemy_stats);
-                                (enemy, normalized_enemy, role_enemy_display_stats)
-                            })
-                            .collect(),
-                    ))
-                })
-                .collect();
+            display_stats.per_role_per_enemy =
+                per_role_per_enemy(&matches, &puuid, role, &state, &title);
 
             display_stats
         })
-        .collect())
+        .collect::<Vec<_>>();
+    let totals = gather_stats(&state, &all_matches, &puuid);
+    let title = "Total".to_string();
+    let mut total_stats = convert_stats(&title, totals);
+    if champion.is_none() {
+        total_stats.per_role_per_champ =
+            per_role_per_champ(&all_matches, &puuid, role, &state, &title);
+    }
+    total_stats.per_role_per_enemy =
+        per_role_per_enemy(&all_matches, &puuid, role, &state, &title);
+    group_stats.push(total_stats);
+    Ok(group_stats)
+}
+
+fn per_role_per_enemy<'a>(
+    matches: impl IntoIterator<Item = &'a &'a json::Match>,
+    puuid: &'a str,
+    role: Option<Role>,
+    state: &State,
+    title: &str,
+) -> Vec<(Role, DisplayChampMatches)> {
+    matches_by_role_enemy(matches, puuid)
+        .into_iter()
+        .filter_map(|(by_role, champ_map)| {
+            if role.is_some() && role != Some(by_role) {
+                return None;
+            }
+            Some((
+                by_role,
+                champ_map
+                    .into_iter()
+                    .map(|(enemy, enemy_matches)| {
+                        let normalized_enemy = normalize_champion_name(&enemy);
+                        let role_enemy_stats = gather_stats(state, &enemy_matches, puuid);
+                        let role_enemy_display_stats =
+                            convert_stats(title, role_enemy_stats);
+                        (enemy, normalized_enemy, role_enemy_display_stats)
+                    })
+                    .collect(),
+            ))
+        })
+        .collect()
+}
+
+fn per_role_per_champ(
+    matches: &Vec<&Match>,
+    puuid: &str,
+    role: Option<Role>,
+    state: &State,
+    title: &str,
+) -> Vec<(Role, DisplayChampMatches)> {
+    matches_by_role_champ(matches, puuid)
+        .into_iter()
+        .filter_map(|(by_role, champ_map)| {
+            if role.is_some() && role != Some(by_role) {
+                return None;
+            }
+            Some((
+                by_role,
+                champ_map
+                    .into_iter()
+                    .map(|(champ, champ_matches)| {
+                        let normalized_champ = normalize_champion_name(&champ);
+                        let role_champ_stats = gather_stats(state, &champ_matches, puuid);
+                        let role_champ_display_stats =
+                            convert_stats(title, role_champ_stats);
+                        (champ, normalized_champ, role_champ_display_stats)
+                    })
+                    .collect(),
+            ))
+        })
+        .collect()
 }
 
 #[cfg(test)]

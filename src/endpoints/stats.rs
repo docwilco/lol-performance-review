@@ -1,5 +1,5 @@
 use crate::{
-    calculations::WeekStats, fetcher::{check_or_start_fetching, RedirectOrContinue}, internal_server_error, riot_api::json::Role, Player, PlayerRoleChamp, State, CHAMP_NAMES
+    calculations::GroupStats, fetcher::{check_or_start_fetching, RedirectOrContinue}, internal_server_error, riot_api::json::Role, Player, PlayerRoleChamp, State, CHAMP_NAMES
 };
 use actix_web::{routes, web, Either, HttpRequest, Responder, Result as ActixResult};
 use askama_actix::Template;
@@ -12,7 +12,7 @@ struct DisplayData {
     player: Player,
     role: Option<Role>,
     champion: Option<String>,
-    weeks: Vec<WeekStats>,
+    groups: Vec<GroupStats>,
 }
 
 #[routes]
@@ -29,17 +29,20 @@ pub async fn page(state: State, request: HttpRequest, path: web::Path<PlayerRole
     {
         return Ok(Either::Left(redirect));
     }
-    let mut weeks =
+    let mut groups =
         crate::calculations::calc_stats(state, &mut player, role, champion.as_deref())
             .await
             .map_err(internal_server_error)?;
-    let mut previous_week = None;
-    for current_week in &mut weeks {
-        if let Some(previous_week) = previous_week {
-            current_week.compare_to(&previous_week);
-            current_week.previous_at_minute_stats = Some(previous_week.at_minute_stats.clone());
+    let mut previous_group = None;
+    for current_group in &mut groups {
+        if current_group.title == "Total" {
+            continue;
         }
-        previous_week = Some(current_week.clone());
+        if let Some(previous_week) = previous_group {
+            current_group.compare_to(&previous_week);
+            current_group.previous_at_minute_stats = Some(previous_week.at_minute_stats.clone());
+        }
+        previous_group = Some(current_group.clone());
     }
     let champion = champion.map(|c| (*CHAMP_NAMES.get(&c).unwrap()).to_string());
     Ok(Either::Right(
@@ -47,7 +50,7 @@ pub async fn page(state: State, request: HttpRequest, path: web::Path<PlayerRole
             player,
             role,
             champion,
-            weeks,
+            groups,
         }
         .customize()
         .insert_header(("content-type", "text/html")),
