@@ -2,13 +2,12 @@ use crate::{ApiRegion, FetchStatusPerPlayer, Player, Result};
 use dashmap::{DashMap, Entry};
 use governor::{DefaultDirectRateLimiter, Quota};
 use log::{debug, trace};
-use nonzero_ext::nonzero;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client, Url,
 };
 use serde::Deserialize;
-use std::{fmt, fs, num::NonZeroU32, sync::Arc, time::Duration};
+use std::{env, fmt, fs, num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::time::{interval, sleep};
 
 //#[derive(Deserialize)]
@@ -34,13 +33,19 @@ impl ApiClient {
         api_key_value.set_sensitive(true);
         headers.insert("X-Riot-Token", api_key_value);
         let client = Client::builder().default_headers(headers).build()?;
-        let app_per_second = Arc::new(DefaultDirectRateLimiter::direct(Quota::per_minute(
-            nonzero!(49_u32),
-        )));
-        let app_per_2_minutes = Arc::new(DefaultDirectRateLimiter::direct(Quota::per_second(
-            nonzero!(19_u32),
-        )));
-        let app_limits = [app_per_second, app_per_2_minutes];
+        let first_app_limit = env::var("RATELIMIT_APP_LIMIT_1")?.parse::<u32>()?;
+        let second_app_limit = env::var("RATELIMIT_APP_LIMIT_2")?.parse::<u32>()?;
+        let first_app_duration = duration_str::parse(&env::var("RATELIMIT_APP_DURATION_1")?)?;
+        let second_app_duration = duration_str::parse(&env::var("RATELIMIT_APP_DURATION_2")?)?;
+        let first_period_per: Duration = first_app_duration / first_app_limit;
+        let second_period_per: Duration = second_app_duration / second_app_limit;
+        let first_app_rate = Arc::new(DefaultDirectRateLimiter::direct(
+            Quota::with_period(first_period_per).unwrap(),
+        ));
+        let second_app_rate = Arc::new(DefaultDirectRateLimiter::direct(
+            Quota::with_period(second_period_per).unwrap(),
+        ));
+        let app_limits = [first_app_rate, second_app_rate];
         let method_limits = Arc::new(DashMap::new());
         Ok(Self {
             http_client: client,
