@@ -457,12 +457,12 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 </div>
                 {% if champion.is_none() %}
                 <h2>Champion performance</h2>
-                <div class="champs-table sortable">
+                <div class="champs-table">
                     {% for (role, per_champ) in group.per_role_per_champ %}
                     <h3>
                         <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
                     </h3>
-                    <table>
+                    <table class="sortable">
                         <thead>
                             <tr>
                                 <th>Champion</th>
@@ -490,12 +490,12 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 </div>
                 {% endif %}
                 <h2>Performance versus enemy champions</h2>
-                <div class="enemy-table sortable">
+                <div class="enemy-table">
                     {% for (role, per_champ) in group.per_role_per_enemy %}
                     <h3>
                         <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
                     </h3>
-                    <table>
+                    <table class="sortable">
                         <thead>
                             <tr>
                                 <th>Enemy</th>
@@ -974,11 +974,11 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
         // Automatically attach event listeners to table headers
         document.addEventListener('DOMContentLoaded', () => {
             const tables = document.querySelectorAll('table.sortable');
-        
-              tables.forEach(table => {
+            console.log("sortable tables", tables);
+            tables.forEach(table => {
                 const headers = table.querySelectorAll('th');
                 headers.forEach((header, index) => {
-                header.addEventListener('click', (event) => sortTable(event));
+                    header.addEventListener('click', (event) => sortTable(event));
                 });
             });
         });
