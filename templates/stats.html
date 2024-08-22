@@ -52,6 +52,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
 <!DOCTYPE html>
 <html>
     <head>
+        <meta charset="utf-8">
         <title>{% call title(player, role, champion) %}</title>
         <style>
             body {
@@ -176,6 +177,34 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
             th {
                 background-color: #f2f2f2;
                 font-weight: bold;
+            }
+
+            .sortable th {
+                cursor: pointer;
+                position: relative;
+                padding-right: 20px;
+            }
+            
+            .sortable th::after {
+                content: "◇";
+                font-size: 12px;
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                opacity: 0.6;
+            }
+
+            .sortable th.asc::after {
+                content: "▲";
+            }
+
+            .sortable th.desc::after {
+                content: "▼";
+            }
+
+            .sortable th:hover::after {
+                opacity: 1;
             }
 
             .all-heatmaps-container {
@@ -428,7 +457,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 </div>
                 {% if champion.is_none() %}
                 <h2>Champion performance</h2>
-                <div class="champs-table">
+                <div class="champs-table sortable">
                     {% for (role, per_champ) in group.per_role_per_champ %}
                     <h3>
                         <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
@@ -437,7 +466,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                         <thead>
                             <tr>
                                 <th>Champion</th>
-                                <th>Games</th>
+                                <th class="desc">Games</th>
                                 <th>Win rate</th>
                                 <th>KDA</th>
                                 <th>CS/min</th>
@@ -451,7 +480,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                                 </td>
                                 <td>{{ champion_stats.games_played }}</td>
                                 <td>{% call percent_float_with_diff(champion_stats.winrate) %}</td>
-                                <td>{% call float_with_diff(champion_stats.kills) %} / {% call float_with_diff(champion_stats.deaths) %} / {% call float_with_diff(champion_stats.assists) %} ( {% call float_with_diff(champion_stats.kda) %} )</td>
+                                <td data-sort="{{ champion_stats.kda }}">{% call float_with_diff(champion_stats.kills) %} / {% call float_with_diff(champion_stats.deaths) %} / {% call float_with_diff(champion_stats.assists) %} ( {% call float_with_diff(champion_stats.kda) %} )</td>
                                 <td>{% call float_with_diff(champion_stats.cs_per_minute) %}</td>
                             </tr>
                             {% endfor %}
@@ -461,7 +490,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 </div>
                 {% endif %}
                 <h2>Performance versus enemy champions</h2>
-                <div class="enemy-table">
+                <div class="enemy-table sortable">
                     {% for (role, per_champ) in group.per_role_per_enemy %}
                     <h3>
                         <a href="/stats/{{ player.region }}/{{ player.game_name.to_lowercase() }}/{{ player.tag_line }}/{{ role.lowercase() }}#{{ group.id }}">{{ role }}</a>
@@ -471,7 +500,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             <tr>
                                 <th>Enemy</th>
                                 <th>Games</th>
-                                <th>Win rate</th>
+                                <th class="asc">Win rate</th>
                                 <th>KDA</th>
                                 <th>CS/min</th>
                             </tr>
@@ -482,7 +511,7 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                                 <td>{{ enemy }}</td>
                                 <td>{{ vs_enemy_stats.games_played }}</td>
                                 <td>{% call percent_float_with_diff(vs_enemy_stats.winrate) %}</td>
-                                <td>{% call float_with_diff(vs_enemy_stats.kills) %} / {% call float_with_diff(vs_enemy_stats.deaths) %} / {% call float_with_diff(vs_enemy_stats.assists) %} ( {% call float_with_diff(vs_enemy_stats.kda) %} )</td>
+                                <td data-sort="{{ vs_enemy_stats.kda }}">{% call float_with_diff(vs_enemy_stats.kills) %} / {% call float_with_diff(vs_enemy_stats.deaths) %} / {% call float_with_diff(vs_enemy_stats.assists) %} ( {% call float_with_diff(vs_enemy_stats.kda) %} )</td>
                                 <td>{% call float_with_diff(vs_enemy_stats.cs_per_minute) %}</td>
                             </tr>
                             {% endfor %}
@@ -878,6 +907,80 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                 make_chart('ld', 'Level Diff', '{{ group.id }}', ld_data);
                 make_chart('gd', 'Gold Diff', '{{ group.id }}', gd_data);
             {% endfor %}
+        });
+    </script>
+    <script>
+        function sortTable(event) {
+            // Find the clicked header and its index
+            const header = event.target.closest('th');
+            const table = header.closest('table');
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const headers = Array.from(table.querySelectorAll('th'));
+            const columnIndex = headers.indexOf(header); // Determine the index of the clicked column
+            
+            let direction = 'asc';
+            
+            // Determine the current sorting direction
+            if (header.classList.contains('asc')) {
+                direction = 'desc';
+            } else if (header.classList.contains('desc')) {
+                direction = 'asc';
+            }
+            
+            // Remove sort classes from all headers
+            headers.forEach(th => th.classList.remove('asc', 'desc'));
+            
+            // Add the appropriate class to the clicked column header
+            header.classList.add(direction);
+            
+            rows.sort((a, b) => {
+                const cellA = a.cells[columnIndex];
+                const cellB = b.cells[columnIndex];
+            
+                // Get sorting value from data-sort attribute or use innerText
+                const getValue = cell => cell.getAttribute('data-sort') || cell.innerText.trim();
+            
+                // Attempt to parse values as numbers
+                const numA = parseFloat(getValue(cellA));
+                const numB = parseFloat(getValue(cellB));
+                const isNumeric = !isNaN(numA) && !isNaN(numB);
+            
+                if (isNumeric) {
+                    // Perform numerical sorting
+                    if (numA < numB) {
+                        return direction === 'asc' ? -1 : 1;
+                    }
+                    if (numA > numB) {
+                        return direction === 'asc' ? 1 : -1;
+                    }
+                } else {
+                    // Perform alphabetical sorting
+                    const textA = getValue(cellA);
+                    const textB = getValue(cellB);
+                
+                    if (textA < textB) {
+                        return direction === 'asc' ? -1 : 1;
+                    }
+                    if (textA > textB) {
+                        return direction === 'asc' ? 1 : -1;
+                    }
+                }
+                return 0;
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+        // Automatically attach event listeners to table headers
+        document.addEventListener('DOMContentLoaded', () => {
+            const tables = document.querySelectorAll('table.sortable');
+        
+              tables.forEach(table => {
+                const headers = table.querySelectorAll('th');
+                headers.forEach((header, index) => {
+                header.addEventListener('click', (event) => sortTable(event));
+                });
+            });
         });
     </script>
 </body>
