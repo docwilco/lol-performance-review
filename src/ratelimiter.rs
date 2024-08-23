@@ -35,8 +35,8 @@ impl ApiClient {
         let client = Client::builder().default_headers(headers).build()?;
         let first_app_limit = env::var("RATELIMIT_APP_LIMIT_1")?.parse::<u32>()?;
         let second_app_limit = env::var("RATELIMIT_APP_LIMIT_2")?.parse::<u32>()?;
-        let first_app_duration = duration_str::parse(&env::var("RATELIMIT_APP_DURATION_1")?)?;
-        let second_app_duration = duration_str::parse(&env::var("RATELIMIT_APP_DURATION_2")?)?;
+        let first_app_duration = duration_str::parse(env::var("RATELIMIT_APP_DURATION_1")?)?;
+        let second_app_duration = duration_str::parse(env::var("RATELIMIT_APP_DURATION_2")?)?;
         let first_period_per: Duration = first_app_duration / first_app_limit;
         let second_period_per: Duration = second_app_duration / second_app_limit;
         let first_app_rate = Arc::new(DefaultDirectRateLimiter::direct(

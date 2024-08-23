@@ -91,6 +91,11 @@ Comparison
 {% endif %}
 of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.region }} with {{ player2.game_name|escape }}#{{ player2.tag_line|escape }} on {{ player2.region }} 
 {% endmacro %}
+
+{% macro url(player1, player2, role, champion) %}
+/compare/{{ player1.region }}/{{ player1.game_name }}/{{ player1.tag_line }}/vs/{{ player2.region }}/{{ player2.game_name }}/{{ player2.tag_line }}{% if let Some(role) = role %}/{{ role }}{% endif %}{% if let Some(champion) = champion %}/{{ champion }}{% endif %}
+{% endmacro %}
+
 <!DOCTYPE html>
 <html>
     <head>
@@ -471,6 +476,22 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                         </div>
                     </div>
                 </div>
+                <div class="all-heatmaps-container">
+                    {% for (player_index, player) in players.iter().enumerate() %}
+                    <div class="heatmap-column">
+                        {% if let Some(group) = Self::get_group(self, player, group_id) %}
+                            {% for (role, side, count, data) in group.heatmap_data %}
+                                <div class="heatmap-container">
+                                    <h4>{{ player.game_name }}: {{ role }} on the {{ side }} side ({{ count}}x)</h4>
+                                    <div id="heatmap_{{group_id}}_{{player_index}}_{{role}}_{{side}}" class="heatmap">
+                                        <p id="heatmap_text_{{group_id}}_{{player_index}}_{{role}}_{{side}}"></p>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -698,5 +719,191 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             {% endfor %}
         });
     </script>
+    <script>
+            var heatmapInstances = {
+                {% for (_, group_id) in group_titles_and_ids %}
+                    {% for (player_index, player) in players.iter().enumerate() %}
+                        {% if let Some(group) = Self::get_group(self, player, group_id) %}
+                            {% for (role, side, count, data) in group.heatmap_data %}
+                                '{{group_id}}_{{player_index}}_{{role}}_{{side}}': h337.create({
+                                    container: document.getElementById('heatmap_{{group_id}}_{{player_index}}_{{role}}_{{side}}'),
+                                    radius: 15,
+                                }),
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            };
+            var heatmapTexts = {
+                {% for (_, group_id) in group_titles_and_ids %}
+                    {% for (player_index, player) in players.iter().enumerate() %}
+                        {% if let Some(group) = Self::get_group(self, player, group_id) %}
+                            {% for (role, side, count, data) in group.heatmap_data %}
+                                '{{group_id}}_{{player_index}}_{{role}}_{{side}}': document.getElementById('heatmap_text_{{group_id}}_{{player_index}}_{{role}}_{{side}}'),
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            };
+            var heatmapData = {
+                {% for (_, group_id) in group_titles_and_ids %}
+                    {% for (player_index, player) in players.iter().enumerate() %}
+                        {% if let Some(group) = Self::get_group(self, player, group_id) %}                            
+                            {% for (role, side, count, data) in group.heatmap_data %}
+                                '{{group_id}}_{{player_index}}_{{role}}_{{side}}': JSON.parse('{{ data }}'),
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+            };
+            Object.keys(heatmapData).forEach(id => {
+                Object.keys(heatmapData[id]).forEach(minute => {
+                    let arr = heatmapData[id][minute];
+                    arr.forEach(obj => {
+                        obj.value = 10;
+                    });
+                });
+            });
+            Object.keys(heatmapInstances).forEach(id => {
+                heatmapInstances[id].setData({
+                    max: 15,
+                    data: heatmapData[id][1],
+                });
+            });
+
+            var animationSettings = {
+                start: 1,
+                end: 5,
+                animate: true,
+                animating: true,
+            };
+            let lowerSlider = document.getElementById('lower-slider');
+            let upperSlider = document.getElementById('upper-slider');
+            let sliderTrack = document.getElementById('slider-track');
+            var startNumber = document.getElementById('start-number');
+            var endNumber = document.getElementById('end-number');
+            let animationCheckbox = document.getElementById('animation-checkbox');
+            const minGap = 0;
+            const sliderMinValue = 1;
+            const sliderMaxValue = 60;
+
+            function slideLower() {
+                const lowerMax = sliderMaxValue - minGap;
+                let lowerValue = parseInt(lowerSlider.value);
+                let upperValue = parseInt(upperSlider.value);
+                // This way we can't move lower higher than we should be able to
+                if (lowerValue > lowerMax) {
+                    lowerSlider.value = lowerMax;
+                    lowerValue = lowerMax;
+                } 
+                // We always adjust the other slider than the one we change, so
+                // that we don't get weird times where we can't adjust a value
+                // because the other slider is in the way.
+                if (upperValue - lowerValue < minGap) {
+                    upperSlider.value = lowerValue + minGap;
+                    slideUpper();
+                }
+                animationSettings.start = lowerValue;
+                startNumber.value = lowerValue;
+                // This will cause a rerender of the heatmap
+                animationSettings.animating = true;
+                fillColor();
+            }
+            function slideUpper() {
+                const upperMin = sliderMinValue + minGap;
+                let lowerValue = parseInt(lowerSlider.value);
+                let upperValue = parseInt(upperSlider.value);
+                // Same as in slideLower
+                if (upperValue < upperMin) {
+                    upperSlider.value = upperMin;
+                    upperValue = upperMin;
+                }
+                if (upperValue - lowerValue < minGap) {
+                    lowerSlider.value = upperValue - minGap;
+                    slideLower();
+                }
+                animationSettings.end = upperValue;
+                endNumber.value = upperValue;
+                // This will cause a rerender of the heatmap
+                animationSettings.animating = true;
+                fillColor();
+            }
+            function startChange() {
+                let start = parseInt(startNumber.value);
+                lowerSlider.value = start;
+                slideLower();
+            }
+            function endChange() {
+                let end = parseInt(endNumber.value);
+                upperSlider.value = end;
+                slideUpper();
+            }
+            function fillColor() {
+                percent1 = ((lowerSlider.value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                percent2 = ((upperSlider.value - sliderMinValue) / (sliderMaxValue - sliderMinValue)) * 100;
+                sliderTrack.style.background = `linear-gradient(to right, #dadae5 ${percent1}% , #3264fe ${percent1}% , #3264fe ${percent2}%, #dadae5 ${percent2}%)`;
+            }
+
+            async function animate() {
+                let seed = 0;
+                while (true) {
+                    if (animationSettings.animate) {
+                        animateHeatmap(seed);
+                        animationSettings.animating = true;
+                    } else {
+                        if (animationSettings.animating) {
+                            staticHeatmap();
+                            animationSettings.animating = false;
+                        }
+                    }
+                    seed++;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+            }
+            function animateHeatmap(seed) {
+                let start = animationSettings.start;
+                let end = animationSettings.end;
+                let minute = (seed % (end - start + 1)) + start;
+                Object.keys(heatmapInstances).forEach(id => {
+                    let points = heatmapData[id][minute];
+                    if (points !== undefined) {                        
+                        let data = {
+                            data: heatmapData[id][minute],
+                            max: 15
+                        }
+                        heatmapInstances[id].setData(data);
+                        heatmapTexts[id].innerText = `${minute}:00`;
+                    }
+                });
+            }
+
+            function staticHeatmap() {
+                Object.keys(heatmapInstances).forEach(id => {
+                    let data = [];
+                    Object.keys(heatmapData[id]).forEach(minute => {
+                        if (minute >= animationSettings.start && minute <= animationSettings.end) {
+                            data = data.concat(heatmapData[id][minute]);
+                        }
+                    });
+                    heatmapInstances[id].setData({
+                        max: 15,
+                        data: data,
+                    });
+                    heatmapTexts[id].innerText = `${animationSettings.start}:00-${animationSettings.end}:00`;
+                });
+            }
+
+            function animationCheckboxInput(id) {
+                animationSettings.animate = animationCheckbox.checked;
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                slideLower();
+                slideUpper();
+                animate();
+            });
+    </script>
+
 </body>
 </html>
