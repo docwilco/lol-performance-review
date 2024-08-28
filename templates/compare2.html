@@ -92,14 +92,18 @@ Comparison
 of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.region }} with {{ player2.game_name|escape }}#{{ player2.tag_line|escape }} on {{ player2.region }} 
 {% endmacro %}
 
-{% macro url(player1, player2, role, champion) %}
-/compare/{{ player1.region }}/{{ player1.game_name }}/{{ player1.tag_line }}/vs/{{ player2.region }}/{{ player2.game_name }}/{{ player2.tag_line }}{% if let Some(role) = role %}/{{ role }}{% endif %}{% if let Some(champion) = champion %}/{{ champion }}{% endif %}
+{% macro url_role(player1, player2, role) %}
+/compare/{{ player1.region }}/{{ player1.game_name }}/{{ player1.tag_line }}/vs/{{ player2.region }}/{{ player2.game_name }}/{{ player2.tag_line }}/{{ role.lowercase() }}
+{% endmacro %}
+{% macro url_champ(player1, player2, role, champion) %}
+{% call url_role(player1, player2, role) %}/{{ champion }}
 {% endmacro %}
 
 <!DOCTYPE html>
 <html>
     <head>
-        <title>{% call title(players[0], players[1], role, champion) %}</title>
+        <meta charset="utf-8">
+        <title>{% call title(players[0], players[1], role, champion_name) %}</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -219,6 +223,34 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             th {
                 background-color: #f2f2f2;
                 font-weight: bold;
+            }
+
+            .sortable th {
+                cursor: pointer;
+                position: relative;
+                padding-right: 20px;
+            }
+            
+            .sortable th::after {
+                content: "◇";
+                font-size: 12px;
+                position: absolute;
+                right: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                opacity: 0.6;
+            }
+
+            .sortable th.asc::after {
+                content: "▲";
+            }
+
+            .sortable th.desc::after {
+                content: "▼";
+            }
+
+            .sortable th:hover::after {
+                opacity: 1;
             }
 
             .all-heatmaps-container {
@@ -371,7 +403,7 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
             </div>
             {% for (group_title, group_id) in group_titles_and_ids %}
             <div id="{{ group_id }}" class="tabcontent">
-                <h1>{% call title(players[0], players[1], role, champion) %}</h1>
+                <h1>{% call title(players[0], players[1], role, champion_name) %}</h1>
                 <h2>{{ group_title }}</h2>
                 <div class="stats-and-graphs">
                     <div class="hidden-stats-table">
@@ -476,6 +508,65 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                         </div>
                     </div>
                 </div>
+                {% if champion_id.is_none() %}
+                {% if let Some(group) = Self::get_per_role(self, group_id) %}
+                <h2>Champion performance</h2>
+                <div class="champs-table">
+                    {% for (role, per_champ) in group %}
+                    <h3>
+                        <a href="{% call url_role(players[0], players[1], role) %}#{{ group_id }}">{{ role }}</a>
+                    </h3>
+                    <table class="sortable">
+                        <thead>
+                            <tr>
+                                <th rowspan="2">Champion</th>
+                                <th class="desc" rowspan="2">Total games</th>
+                                <th colspan="4" class="nosort">{{ players[0].game_name }}#{{ players[0].tag_line }}</th>
+                                <th colspan="4" class="nosort">{{ players[1].game_name }}#{{ players[1].tag_line }}</th>
+                            </tr>
+                            <tr>
+                                <th>Games</th>
+                                <th>Win rate</th>
+                                <th>KDA</th>
+                                <th>CS/min</th>
+                                <th>Games</th>
+                                <th>Win rate</th>
+                                <th>KDA</th>
+                                <th>CS/min</th>
+                            </tr>
+
+                        </thead>
+                        <tbody>
+                            {% for champion_stats in per_champ %}
+                            <tr>
+                                <td>
+                                    <a href="{% call url_champ(players[0], players[1], role, champion_stats.id) %}#{{ group_id }}">{{ champion_stats.name }}</a>
+                                </td>
+                                <td>
+                                    {{ champion_stats.total_games }}
+                                </td>
+                                {% for player_stats in champion_stats.stats %}
+                                {% if let Some(player_stats) = player_stats %}
+                                <td>{{ player_stats.games_played }}</td>
+                                <td>{% call percent_float_with_diff(player_stats.winrate) %}</td>
+                                <td data-sort="{{ player_stats.kda }}">{% call float_with_diff(player_stats.kills) %} / {% call float_with_diff(player_stats.deaths) %} / {% call float_with_diff(player_stats.assists) %} ( {% call float_with_diff(player_stats.kda) %} )</td>
+                                <td>{% call float_with_diff(player_stats.cs_per_minute) %}</td>
+                                {% else %}
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                <td>&nbsp;</td>
+                                {% endif %}
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endif %}
+
                 <div class="all-heatmaps-container">
                     {% for (player_index, player) in players.iter().enumerate() %}
                     <div class="heatmap-column">
@@ -904,6 +995,79 @@ of {{ player1.game_name|escape }}#{{ player1.tag_line|escape }} on {{ player1.re
                 animate();
             });
     </script>
-
+    <script>
+        function sortTable(event) {
+            // Find the clicked header and its index
+            const header = event.target.closest('th');
+            const table = header.closest('table');
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const headers = Array.from(table.querySelectorAll('th')).filter(th => !th.classList.contains('nosort'));
+            const columnIndex = headers.indexOf(header); // Determine the index of the clicked column
+            
+            let direction = 'asc';
+            
+            // Determine the current sorting direction
+            if (header.classList.contains('asc')) {
+                direction = 'desc';
+            } else if (header.classList.contains('desc')) {
+                direction = 'asc';
+            }
+            
+            // Remove sort classes from all headers
+            headers.forEach(th => th.classList.remove('asc', 'desc'));
+            
+            // Add the appropriate class to the clicked column header
+            header.classList.add(direction);
+            
+            rows.sort((a, b) => {
+                const cellA = a.cells[columnIndex];
+                const cellB = b.cells[columnIndex];
+            
+                // Get sorting value from data-sort attribute or use innerText
+                const getValue = cell => cell.getAttribute('data-sort') || cell.innerText.trim();
+            
+                // Attempt to parse values as numbers
+                const numA = parseFloat(getValue(cellA));
+                const numB = parseFloat(getValue(cellB));
+                const isNumeric = !isNaN(numA) && !isNaN(numB);
+            
+                if (isNumeric) {
+                    // Perform numerical sorting
+                    if (numA < numB) {
+                        return direction === 'asc' ? -1 : 1;
+                    }
+                    if (numA > numB) {
+                        return direction === 'asc' ? 1 : -1;
+                    }
+                } else {
+                    // Perform alphabetical sorting
+                    const textA = getValue(cellA);
+                    const textB = getValue(cellB);
+                
+                    if (textA < textB) {
+                        return direction === 'asc' ? -1 : 1;
+                    }
+                    if (textA > textB) {
+                        return direction === 'asc' ? 1 : -1;
+                    }
+                }
+                return 0;
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+        // Automatically attach event listeners to table headers
+        document.addEventListener('DOMContentLoaded', () => {
+            const tables = document.querySelectorAll('table.sortable');
+            console.log("sortable tables", tables);
+            tables.forEach(table => {
+                const headers = table.querySelectorAll('th');
+                headers.forEach((header, index) => {
+                    header.addEventListener('click', (event) => sortTable(event));
+                });
+            });
+        });
+    </script>
 </body>
 </html>

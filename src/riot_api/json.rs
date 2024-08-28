@@ -127,7 +127,7 @@ pub struct PerkStyle {
 }
 
 #[derive(
-    Clone, Copy, Debug, Eq, Hash, PartialEq, Deserialize, Serialize, strum::EnumIter, strum::Display,
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Deserialize, Serialize, strum::EnumIter, strum::Display,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
