@@ -103,10 +103,17 @@
                     tab.classList.toggle('active', index === tabIndex);
                     contents[index].classList.toggle('active', index === tabIndex);
                 });
+                // Now make the first select field in the active tab have focus
+                let activeTab = contents[tabIndex];
+                let firstSelect = activeTab.querySelector('select');
+                if (firstSelect) {
+                    firstSelect.focus();
+                }
             }
         </script>
     </head>
     <body>
+        {% include "topright.html" %}
         <div class="tab-container">
             <div class="tab-buttons">
                 <div class="tab active" onclick="showTab(0)">Stats</div>
@@ -115,7 +122,7 @@
             <div class="tab-content active">
                 <form id="player-selection-stats">
                     <label for="region">Region:</label>
-                    <select id="region">
+                    <select id="region" autofocus>
                         {% for region in regions %}
                         <option value="{{ region }}">{{ region }}</option>
                         {% endfor %}
@@ -130,7 +137,7 @@
                     <input type="text" id="tagLine">
                     <br>
                     <br>
-                    <button type="button" onclick="combineInputsStats()">Go</button>
+                    <button type="button" id="stats-go">Go</button>
                 </form>
             </div>
             <div class="tab-content">
@@ -173,22 +180,45 @@
                     </div>
                     <br>
                     <br>
-                    <button type="button" onclick="combineInputsCompare()">Go</button>
+                    <button type="button" id="compare-go">Go</button>
                 </form>
             </div>
         </div>
         <script>
-            let goButton = document.getElementById('go-button');
-            goButton.addEventListener('click', function(event) {
+            let statsGo = document.getElementById('stats-go');
+            statsGo.addEventListener('click', function(event) {
                 event.preventDefault();
                 combineInputsStats();
-            }); 
-            let form = document.getElementById('player-selection-stats'); 
-            goButton.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    combineInputsStats();
-                }
+            });
+            let compareGo = document.getElementById('compare-go');
+            compareGo.addEventListener('click', function(event) {
+                event.preventDefault();
+                combineInputsCompare();
+            });
+            // Link stats fields to compare p1 fields, and vice versa
+            let gameName = document.getElementById('gameName');
+            let tagLine = document.getElementById('tagLine');
+            let region = document.getElementById('region');
+            let gameNameP1 = document.getElementById('gameName-p1');
+            let tagLineP1 = document.getElementById('tagLine-p1');
+            let regionP1 = document.getElementById('region-p1');
+            gameName.addEventListener('input', function() {
+                gameNameP1.value = gameName.value;
+            });
+            tagLine.addEventListener('input', function() {
+                tagLineP1.value = tagLine.value;
+            });
+            region.addEventListener('input', function() {
+                regionP1.value = region.value;
+            });
+            gameNameP1.addEventListener('input', function() {
+                gameName.value = gameNameP1.value;
+            });
+            tagLineP1.addEventListener('input', function() {
+                tagLine.value = tagLineP1.value;
+            });
+            regionP1.addEventListener('input', function() {
+                region.value = regionP1.value;
             });
         </script>
     </body>
