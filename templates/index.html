@@ -133,7 +133,7 @@
                     <input type="text" id="gameName">
                     <br>
                     <br>
-                    <label for="tagLine">Tag Line:</label>
+                    <label for="tagLine">Tag Line: #</label>
                     <input type="text" id="tagLine">
                     <br>
                     <br>
@@ -157,8 +157,8 @@
                             <input type="text" id="gameName-p1">
                             <br>
                             <br>
-                            <label for="tagLine-p1">Tag Line:</label>
-                            <input type="text" id="tagLine-p1">
+                            <label for="tagLine-p1">Tag Line:</label><br>
+                            #<input type="text" id="tagLine-p1">
                         </div>
                         <div class="form-column">
                             <h2>Player 2</h2>
@@ -174,8 +174,8 @@
                             <input type="text" id="gameName-p2">
                             <br>
                             <br>
-                            <label for="tagLine-p2">Tag Line 2:</label>
-                            <input type="text" id="tagLine-p2">
+                            <label for="tagLine-p2">Tag Line 2:</label><br>
+                            #<input type="text" id="tagLine-p2">
                         </div>
                     </div>
                     <br>
@@ -202,10 +202,15 @@
             let gameNameP1 = document.getElementById('gameName-p1');
             let tagLineP1 = document.getElementById('tagLine-p1');
             let regionP1 = document.getElementById('region-p1');
+            let tagLineP2 = document.getElementById('tagLine-p2');
             gameName.addEventListener('input', function() {
                 gameNameP1.value = gameName.value;
             });
             tagLine.addEventListener('input', function() {
+                // Remove any # from the tag line
+                if (tagLine.value.includes('#')) {
+                    tagLine.value = tagLine.value.replace(/#/g, '');
+                }
                 tagLineP1.value = tagLine.value;
             });
             region.addEventListener('input', function() {
@@ -215,10 +220,18 @@
                 gameName.value = gameNameP1.value;
             });
             tagLineP1.addEventListener('input', function() {
+                if (tagLineP1.value.includes('#')) {
+                    tagLineP1.value = tagLine.value.replace(/#/g, '');
+                }
                 tagLine.value = tagLineP1.value;
             });
             regionP1.addEventListener('input', function() {
                 region.value = regionP1.value;
+            });
+            tagLineP2.addEventListener('input', function() {
+                if (tagLineP2.value.includes('#')) {
+                    tagLineP2.value = tagLineP2.value.replace(/#/g, '');
+                }
             });
         </script>
     </body>
