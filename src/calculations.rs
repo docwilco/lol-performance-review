@@ -534,7 +534,9 @@ fn gather_stats<'a>(
                 .kda
                 .push((f64::from(player.kills) + f64::from(player.assists)) / deaths);
 
-            let cs_per_minute = f64::from(player.total_minions_killed)
+            let cs_per_minute = (f64::from(player.total_minions_killed)
+                + f64::from(player.total_ally_jungle_minions_killed)
+                + f64::from(player.total_enemy_jungle_minions_killed))
                 / f64::from(i32::try_from(m.info.game_duration.num_minutes()).unwrap());
             stats.cs_per_minute.push(cs_per_minute);
 
@@ -877,30 +879,34 @@ pub async fn calc_stats(
     debug!("Calculating stats");
     let now = Utc::now();
     let player_matches = state.matches_per_puuid.get(&puuid).unwrap();
-    let all_matches = player_matches.iter().filter_map(|(_, m)| {
-        let champ_match = champion.map_or(true, |champion| {
-            m.info
-                .participants
-                .iter()
-                .any(|p| p.puuid == puuid && normalize_champion_name(&p.champion_name) == champion)
-        });
-        let role_match = role.map_or(true, |role| {
-            m.info
-                .participants
-                .iter()
-                .any(|p| p.puuid == puuid && p.team_position == role)
-        });
-        if champ_match
-            && role_match
-            && m.info.game_mode == "CLASSIC"
-            && m.info.game_duration > TimeDelta::minutes(5)
-            && m.info.game_start_timestamp > from {
-            Some(m)
-        } else {
-            None
-        }
-    }).collect::<Vec<_>>();
-    let mut group_stats = all_matches.clone()
+    let all_matches = player_matches
+        .iter()
+        .filter_map(|(_, m)| {
+            let champ_match = champion.map_or(true, |champion| {
+                m.info.participants.iter().any(|p| {
+                    p.puuid == puuid && normalize_champion_name(&p.champion_name) == champion
+                })
+            });
+            let role_match = role.map_or(true, |role| {
+                m.info
+                    .participants
+                    .iter()
+                    .any(|p| p.puuid == puuid && p.team_position == role)
+            });
+            if champ_match
+                && role_match
+                && m.info.game_mode == "CLASSIC"
+                && m.info.game_duration > TimeDelta::minutes(5)
+                && m.info.game_start_timestamp > from
+            {
+                Some(m)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    let mut group_stats = all_matches
+        .clone()
         .into_iter()
         .sorted_by_key(|m| m.info.game_start_timestamp)
         .chunk_by(|m| (now - m.info.game_start_timestamp).num_weeks())
@@ -927,8 +933,7 @@ pub async fn calc_stats(
         total_stats.per_role_per_champ =
             per_role_per_champ(&all_matches, &puuid, role, &state, &title);
     }
-    total_stats.per_role_per_enemy =
-        per_role_per_enemy(&all_matches, &puuid, role, &state, &title);
+    total_stats.per_role_per_enemy = per_role_per_enemy(&all_matches, &puuid, role, &state, &title);
     group_stats.push(total_stats);
     Ok(group_stats)
 }
@@ -953,8 +958,7 @@ fn per_role_per_enemy<'a>(
                     .map(|(enemy, enemy_matches)| {
                         let normalized_enemy = normalize_champion_name(&enemy);
                         let role_enemy_stats = gather_stats(state, &enemy_matches, puuid);
-                        let role_enemy_display_stats =
-                            convert_stats(title, role_enemy_stats);
+                        let role_enemy_display_stats = convert_stats(title, role_enemy_stats);
                         (enemy, normalized_enemy, role_enemy_display_stats)
                     })
                     .collect(),
@@ -983,8 +987,7 @@ fn per_role_per_champ(
                     .map(|(champ, champ_matches)| {
                         let normalized_champ = normalize_champion_name(&champ);
                         let role_champ_stats = gather_stats(state, &champ_matches, puuid);
-                        let role_champ_display_stats =
-                            convert_stats(title, role_champ_stats);
+                        let role_champ_display_stats = convert_stats(title, role_champ_stats);
                         (champ, normalized_champ, role_champ_display_stats)
                     })
                     .collect(),
