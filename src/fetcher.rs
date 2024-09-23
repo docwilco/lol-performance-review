@@ -116,8 +116,7 @@ pub async fn check_or_start_fetching(
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             state
                 .fetch_status_per_player
-                .remove(&player_clone)
-                .unwrap();
+                .remove(&player_clone);
         });
         broadcaster.last_status = FetchStatus::Fetching { percent_done: 0 };
     }
