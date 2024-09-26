@@ -153,7 +153,112 @@ pub async fn page2(
     .map_err(internal_server_error)?;
     let mut per_group_per_role_per_champ: GroupStatsMap = HashMap::new();
 
-    for ((p1, group_name), p1_group) in &mut p1d {
+    compare_players(&mut p1d, &p2d, &mut per_group_per_role_per_champ);
+
+    let mut group_titles_and_ids = group_titles_and_ids
+        .into_iter()
+        .sorted()
+        .collect::<Vec<_>>();
+    // Pop Total off the front and put it at the end
+    let total = group_titles_and_ids.remove(0);
+    group_titles_and_ids.push(total);
+
+    let champion_name = champion
+        .as_ref()
+        .map(|c| (*CHAMP_NAMES.get(c).unwrap()).to_string());
+
+    let mut data = p1d;
+    data.extend(p2d);
+
+    Ok(Either::Right(
+        DisplayData {
+            players: [p1, p2],
+            role,
+            champion_name,
+            champion_id: champion,
+            data,
+            group_titles_and_ids,
+            per_group_per_role_per_champ: get_per_group_per_role_per_champ(
+                per_group_per_role_per_champ,
+            ),
+        }
+        .customize()
+        .insert_header(("content-type", "text/html")),
+    ))
+}
+
+fn get_per_group_per_role_per_champ(
+    per_group_per_role_per_champ: GroupStatsMap,
+) -> PerGroupChampStats {
+    per_group_per_role_per_champ
+        .into_iter()
+        .map(|(group_id, per_role_per_champ)| {
+            (
+                group_id,
+                per_role_per_champ
+                    .into_iter()
+                    .map(|(role, champs)| {
+                        let champs = champs
+                            .into_iter()
+                            .map(
+                                |(
+                                    name,
+                                    ChampionStatsIntermediate {
+                                        id,
+                                        player1,
+                                        player2,
+                                    },
+                                )| {
+                                    let total_games =
+                                        player1.as_ref().map_or(0, |s| s.games_played)
+                                            + player2.as_ref().map_or(0, |s| s.games_played);
+                                    ChampionStats {
+                                        name,
+                                        id,
+                                        total_games,
+                                        stats: [player1, player2],
+                                    }
+                                },
+                            )
+                            // Sort by games played, descending
+                            .sorted_by_key(|cs| {
+                                -i64::from(
+                                    cs.stats
+                                        .iter()
+                                        .map(|s| s.as_ref().map_or(0, |s| s.games_played))
+                                        .sum::<u32>(),
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        (role, champs)
+                    })
+                    // Sort by games played
+                    .sorted_by_cached_key(|per_role| {
+                        -i64::from(
+                            per_role
+                                .1
+                                .iter()
+                                .flat_map(|cs| {
+                                    cs.stats
+                                        .iter()
+                                        .map(|s| s.as_ref().map_or(0, |s| s.games_played))
+                                })
+                                .sum::<u32>(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>()
+}
+
+fn compare_players(
+    p1d: &mut HashMap<(Player, String), GroupStats>,
+    p2d: &HashMap<(Player, String), GroupStats>,
+    per_group_per_role_per_champ: &mut GroupStatsMap,
+) {
+    let p2 = p2d.keys().next().unwrap().0.clone();
+    for ((p1, group_name), p1_group) in p1d {
         if let Some(p2_group) = p2d.get(&(p2.clone(), group_name.clone())) {
             debug!("Comparing {p1} and {p2} in {group_name}");
             p1_group.compare_to(p2_group);
@@ -224,92 +329,4 @@ pub async fn page2(
             }
         }
     }
-
-    let per_group_per_role_per_champ = per_group_per_role_per_champ
-        .into_iter()
-        .map(|(group_id, per_role_per_champ)| {
-            (
-                group_id,
-                per_role_per_champ
-                    .into_iter()
-                    .map(|(role, champs)| {
-                        let champs = champs
-                            .into_iter()
-                            .map(
-                                |(
-                                    name,
-                                    ChampionStatsIntermediate {
-                                        id,
-                                        player1,
-                                        player2,
-                                    },
-                                )| {
-                                    let total_games = player1.as_ref().map_or(0, |s| s.games_played)
-                                        + player2.as_ref().map_or(0, |s| s.games_played);
-                                    ChampionStats {
-                                    name,
-                                    id,
-                                    total_games,
-                                    stats: [player1, player2],
-                                }
-                            }
-                            )
-                            // Sort by games played, descending
-                            .sorted_by_key(|cs| {
-                                -i64::from(
-                                    cs.stats
-                                        .iter()
-                                        .map(|s| s.as_ref().map_or(0, |s| s.games_played))
-                                        .sum::<u32>(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        (role, champs)
-                    })
-                    // Sort by games played
-                    .sorted_by_cached_key(|per_role| {
-                        -i64::from(
-                            per_role
-                                .1
-                                .iter()
-                                .flat_map(|cs| {
-                                    cs.stats
-                                        .iter()
-                                        .map(|s| s.as_ref().map_or(0, |s| s.games_played))
-                                })
-                                .sum::<u32>(),
-                        )
-                    })
-                    .collect::<Vec<_>>(),
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let mut data = p1d;
-    data.extend(p2d);
-
-    let mut group_titles_and_ids = group_titles_and_ids
-        .into_iter()
-        .sorted()
-        .collect::<Vec<_>>();
-    // Pop Total off the front and put it at the end
-    let total = group_titles_and_ids.remove(0);
-    group_titles_and_ids.push(total);
-
-    let champion_name = champion
-        .as_ref()
-        .map(|c| (*CHAMP_NAMES.get(&c).unwrap()).to_string());
-
-    Ok(Either::Right(
-        DisplayData {
-            players: [p1, p2],
-            role,
-            champion_name,
-            champion_id: champion,
-            data,
-            group_titles_and_ids,
-            per_group_per_role_per_champ,
-        }
-        .customize()
-        .insert_header(("content-type", "text/html")),
-    ))
 }

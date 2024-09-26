@@ -1,5 +1,5 @@
 use crate::{ApiRegion, FetchStatusPerPlayer, Player, Result};
-use dashmap::{DashMap, Entry};
+use dashmap::DashMap;
 use governor::{DefaultDirectRateLimiter, Quota};
 use log::{debug, trace};
 use reqwest::{
