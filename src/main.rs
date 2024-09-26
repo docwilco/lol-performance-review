@@ -203,7 +203,11 @@ async fn main() -> Result<()> {
             .service(endpoints::fetch::events)
             .wrap(Logger::default())
     });
-    server.bind(("127.0.0.1", 8080))?.run().await?;
+    let listen_address = env::var("LISTEN_ADDRESS").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let listen_port = env::var("LISTEN_PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()?;
+    server.bind((listen_address, listen_port))?.run().await?;
 
     Ok(())
 }
