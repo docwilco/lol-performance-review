@@ -91,11 +91,11 @@ impl ApiClient {
         for limit in &self.app_limits {
             limit.until_ready().await;
         }
-        let method_limit = self.method_limits.entry(method.to_string());
-        if let Entry::Occupied(ref entry) = method_limit {
-            entry.get().until_ready().await;
+        let method_limit = self.method_limits.get(method);
+        let method_limit = method_limit.map(|limit| limit.clone());
+        if let Some(limit) = method_limit {
+            limit.until_ready().await;
         }
-
         // Execute the request
         let mut response = self.http_client.get(url.clone()).send().await?;
 
@@ -107,8 +107,11 @@ impl ApiClient {
             .for_each(|(name, value)| {
                 trace!("{}: {}", name, value.to_str().unwrap());
             });
-        // Make a new rate limiter if we didn't have one for this method
-        if let Entry::Vacant(entry) = method_limit {
+        // Make a new rate limiter if we don't have one for this method.
+        // Re-get from the map, because someone else might have inserted it
+        // while we were waiting on the server
+        let method_limit = self.method_limits.get(method);
+        if method_limit.is_none() {
             let limit = response
                 .headers()
                 .get("X-Method-Rate-Limit")
@@ -131,7 +134,7 @@ impl ApiClient {
                 "Setting rate limit for {} to {}/hour",
                 method, rate_per_hour
             );
-            entry.insert(limit);
+            self.method_limits.insert(method.to_string(), limit);
         }
 
         while let Some(retry_after) = response.headers().get("retry-after") {
