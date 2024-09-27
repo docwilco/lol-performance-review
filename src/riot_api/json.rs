@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::{serde_as, DurationMilliSeconds, TimestampMilliSeconds};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,7 +126,18 @@ pub struct PerkStyle {
 }
 
 #[derive(
-    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Deserialize, Serialize, strum::EnumIter, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Deserialize,
+    Serialize,
+    strum::EnumIter,
+    strum::Display,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum Role {

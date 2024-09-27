@@ -1,5 +1,9 @@
 use crate::{
-    calculations::GroupStats, fetcher::{check_or_start_fetching, RedirectOrContinue}, internal_server_error, riot_api::json::Role, Player, PlayerRoleChamp, State, CHAMP_NAMES
+    calculations::GroupStats,
+    fetcher::{check_or_start_fetching, RedirectOrContinue},
+    internal_server_error,
+    riot_api::json::Role,
+    Player, PlayerRoleChamp, State, CHAMP_NAMES,
 };
 use actix_web::{routes, web, Either, HttpRequest, Responder, Result as ActixResult};
 use askama_actix::Template;
@@ -19,7 +23,11 @@ struct DisplayData {
 #[get("/stats/{region}/{game_name}/{tag_line}")]
 #[get("/stats/{region}/{game_name}/{tag_line}/{role}")]
 #[get("/stats/{region}/{game_name}/{tag_line}/{role}/{champion}")]
-pub async fn page(state: State, request: HttpRequest, path: web::Path<PlayerRoleChamp>) -> ActixResult<impl Responder> {
+pub async fn page(
+    state: State,
+    request: HttpRequest,
+    path: web::Path<PlayerRoleChamp>,
+) -> ActixResult<impl Responder> {
     let (mut player, role, champion) = path.into_inner().into();
     debug!("Getting stats for {player} in {role:?} as {champion:?}");
     if let RedirectOrContinue::Redirect(redirect) =
@@ -29,10 +37,9 @@ pub async fn page(state: State, request: HttpRequest, path: web::Path<PlayerRole
     {
         return Ok(Either::Left(redirect));
     }
-    let mut groups =
-        crate::calculations::calc_stats(state, &mut player, role, champion.as_deref())
-            .await
-            .map_err(internal_server_error)?;
+    let mut groups = crate::calculations::calc_stats(state, &mut player, role, champion.as_deref())
+        .await
+        .map_err(internal_server_error)?;
     let mut previous_group = None;
     for current_group in &mut groups {
         if current_group.title == "Total" {

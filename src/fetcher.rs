@@ -1,3 +1,4 @@
+use crate::{riot_api::update_match_history, Player, Result, State};
 use actix_web::web::Redirect;
 use actix_web_lab::{
     sse::{self, Sse},
@@ -7,11 +8,6 @@ use chrono::Utc;
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-
-use crate::{
-    riot_api::update_match_history,
-    Player, Result, State,
-};
 
 #[derive(Debug, Clone, Serialize)]
 pub enum FetchStatus {
@@ -114,9 +110,7 @@ pub async fn check_or_start_fetching(
                 .broadcast(status)
                 .await;
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-            state
-                .fetch_status_per_player
-                .remove(&player_clone);
+            state.fetch_status_per_player.remove(&player_clone);
         });
         broadcaster.last_status = FetchStatus::Fetching { percent_done: 0 };
     }
