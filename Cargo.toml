@@ -1,42 +1,42 @@
 [package]
 name = "lol-performance-review"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
 actix-files = "0.6.6"
-actix-web = "4.8.0"
-actix-web-lab = "0.22.0"
+actix-web = "4.9.0"
+actix-web-lab = "0.23.0"
 askama = { version = "0.12.1", features = ["with-actix-web"] }
 askama_actix = "0.14.0"
-cached = { version = "0.53.1", features = ["async", "disk_store", "proc_macro"] }
+cached = { version = "0.54.0", features = ["async", "disk_store", "proc_macro"] }
 chrono = { version = "0.4.38", features = ["serde"] }
 dashmap = "6.1.0"
 derive_more = { version = "1.0.0", features = ["from"] }
 dotenvy = "0.15.7"
 duration-str = "0.11.2"
-env_logger = "0.11.3"
-governor = "0.6.3"
+env_logger = "0.11.5"
+governor = "0.7.0"
 itertools = "0.13.0"
-log = "0.4.21"
+log = "0.4.22"
 nonzero_ext = "0.3.0"
-ordered-float = "4.2.1"
+ordered-float = "4.5.0"
 phf = "0.11.2"
-reqwest = { version = "0.12.5", features = ["json"] }
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.117"
-serde_with = { version = "3.8.1", features = ["chrono", "json"] }
+reqwest = { version = "0.12.9", features = ["json"] }
+serde = { version = "1.0.215", features = ["derive"] }
+serde_json = "1.0.133"
+serde_with = { version = "3.11.0", features = ["chrono", "json"] }
 strum = { version = "0.26.3", features = ["derive"] }
 test-case = "3.3.1"
-tokio = { version = "1.38.0", features = ["rt-multi-thread", "macros"] }
-tokio-stream = "0.1.15"
+tokio = { version = "1.41.1", features = ["rt-multi-thread", "macros"] }
+tokio-stream = "0.1.16"
 
 [build-dependencies]
-cached = { version = "0.53.1", features = ["disk_store", "proc_macro"] }
+cached = { version = "0.54.0", features = ["disk_store", "proc_macro"] }
 derive_more = { version = "1.0.0", features = ["from"] }
 itertools = "0.13.0"
 phf = "0.11.2"
 phf_codegen = "0.11.2"
-reqwest = { version = "0.12.7", features = ["blocking", "json"] }
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.117"
+reqwest = { version = "0.12.9", features = ["blocking", "json"] }
+serde = { version = "1.0.215", features = ["derive"] }
+serde_json = "1.0.133"
