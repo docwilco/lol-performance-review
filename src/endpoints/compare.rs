@@ -97,10 +97,10 @@ async fn do_player(
     state: State,
     player: &mut Player,
     role: Option<Role>,
-    champion: &Option<String>,
+    champion: Option<&str>,
     group_titles_and_ids: &mut HashSet<(String, String)>,
 ) -> ActixResult<HashMap<(Player, String), GroupStats>> {
-    let groups = crate::calculations::calc_stats(state.clone(), player, role, champion.as_deref())
+    let groups = crate::calculations::calc_stats(state.clone(), player, role, champion)
         .await
         .map_err(internal_server_error)?;
     for group in &groups {
@@ -137,7 +137,7 @@ pub async fn page2(
         state.clone(),
         &mut p1,
         role,
-        &champion,
+        champion.as_deref(),
         &mut group_titles_and_ids,
     )
     .await
@@ -146,7 +146,7 @@ pub async fn page2(
         state.clone(),
         &mut p2,
         role,
-        &champion,
+        champion.as_deref(),
         &mut group_titles_and_ids,
     )
     .await

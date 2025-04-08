@@ -80,7 +80,7 @@ impl ApiClient {
     where
         T: for<'a> Deserialize<'a>,
     {
-        debug!("GET {} {:?} {:?}", method, path_params, query_params);
+        debug!("GET {method} {path_params:?} {query_params:?}");
         let mut url = make_url(region, method, path_params)?;
         let mut query_params = query_params.into_iter().peekable();
         if query_params.peek().is_some() {
@@ -130,16 +130,13 @@ impl ApiClient {
             // check because we want to set the limiter to have a count of 1 for
             // the request we just did.
             assert!(limit.check().is_ok());
-            debug!(
-                "Setting rate limit for {} to {}/hour",
-                method, rate_per_hour
-            );
+            debug!("Setting rate limit for {method} to {rate_per_hour}/hour");
             self.method_limits.insert(method.to_string(), limit);
         }
 
         while let Some(retry_after) = response.headers().get("retry-after") {
             let mut retry_after = retry_after.to_str()?.parse::<u64>()?;
-            debug!("Rate limited, retrying in {} seconds", retry_after);
+            debug!("Rate limited, retrying in {retry_after} seconds");
             let mut interval = interval(Duration::from_secs(1));
             while retry_after > 0 {
                 let broadcaster = self.fetch_status_per_player.get_mut(player);

@@ -161,7 +161,7 @@ fn internal_server_error<T>(err: T) -> actix_web::Error
 where
     T: fmt::Debug + fmt::Display + 'static,
 {
-    log::error!("{:?}", err);
+    log::error!("{err:?}");
     ErrorInternalServerError(err)
 }
 

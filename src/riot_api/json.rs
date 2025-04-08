@@ -418,7 +418,7 @@ pub struct Match {
     pub info: Info,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParticipantFrame {
     pub total_gold: i32,
@@ -429,7 +429,7 @@ pub struct ParticipantFrame {
     pub xp: i32,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -445,7 +445,7 @@ impl Point {
 }
 
 #[allow(clippy::struct_field_names)]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Damage {
     pub basic: bool,
@@ -461,7 +461,7 @@ pub struct Damage {
 }
 
 #[serde_as]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChampionKill {
     #[serde(default)]
@@ -481,7 +481,7 @@ pub struct ChampionKill {
 
 #[allow(clippy::enum_variant_names)]
 #[serde_as]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(
     rename_all = "SCREAMING_SNAKE_CASE",
     rename_all_fields = "camelCase",
@@ -522,6 +522,7 @@ pub enum Event {
         #[serde_as(as = "DurationMilliSeconds<i64>")]
         timestamp: TimeDelta,
     },
+    FeatUpdate,
     GameEnd {
         game_id: i64,
         #[serde_as(as = "TimestampMilliSeconds<i64>")]
@@ -608,7 +609,7 @@ pub enum Event {
 }
 
 #[serde_as]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Frame {
     pub events: Vec<Event>,

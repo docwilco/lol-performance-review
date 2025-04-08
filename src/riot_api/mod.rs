@@ -125,7 +125,7 @@ pub async fn update_match_history(
     let region = player.region.into();
     let mut match_ids = vec![];
     let mut earliest_match = None;
-    while earliest_match.map_or(true, |earliest| earliest > start) {
+    while earliest_match.is_none_or(|earliest| earliest > start) {
         let new = get_match_history(state, region, &puuid, earliest_match, player).await?;
         if new.is_empty() {
             break;

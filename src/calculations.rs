@@ -477,20 +477,19 @@ fn solo_deaths<'a>(
     deaths
         .iter()
         .filter(|(timestamp, position)| {
-            // Get the frames before and after the kill. Both should exist because there's the start and end of the game frames.
-            let frame_before = timeline
+            // Get the frames before and after the kill. Both should exist
+            // because there's the start and end of the game frames.
+            //
+            // Since we don't want to go through the entire timeline, just use
+            // position() and base both indexes on that.
+            let after_index = timeline
                 .info
                 .frames
                 .iter()
-                .filter(|f| f.timestamp < *timestamp)
-                .last()
+                .position(|f| f.timestamp > *timestamp)
                 .unwrap();
-            let frame_after = timeline
-                .info
-                .frames
-                .iter()
-                .find(|f| f.timestamp > *timestamp)
-                .unwrap();
+            let frame_after = &timeline.info.frames[after_index];
+            let frame_before = &timeline.info.frames[after_index - 1];
             // Check if the player was the only one in the area
             for frame in [frame_before, frame_after] {
                 for pid in &team_other_player_ids {
@@ -777,7 +776,7 @@ fn convert_stats(title: &str, gathered: WeekStatsGathering) -> GroupStats {
 fn matches_by_role_champ<'a>(
     matches: impl IntoIterator<Item = &'a &'a json::Match>,
     puuid: &'a str,
-) -> Vec<(Role, ChampMatches)> {
+) -> Vec<(Role, ChampMatches<'a>)> {
     let mut map = HashMap::new();
     for m in matches {
         let player = get_player(m, puuid);
@@ -814,7 +813,7 @@ fn matches_by_role_champ<'a>(
 fn matches_by_role_enemy<'a>(
     matches: impl IntoIterator<Item = &'a &'a json::Match>,
     puuid: &'a str,
-) -> Vec<(Role, ChampMatches)> {
+) -> Vec<(Role, ChampMatches<'a>)> {
     let mut map = HashMap::new();
     for m in matches {
         let player = get_player(m, puuid);
@@ -882,12 +881,12 @@ pub async fn calc_stats(
     let all_matches = player_matches
         .iter()
         .filter_map(|(_, m)| {
-            let champ_match = champion.map_or(true, |champion| {
+            let champ_match = champion.is_none_or(|champion| {
                 m.info.participants.iter().any(|p| {
                     p.puuid == puuid && normalize_champion_name(&p.champion_name) == champion
                 })
             });
-            let role_match = role.map_or(true, |role| {
+            let role_match = role.is_none_or(|role| {
                 m.info
                     .participants
                     .iter()
