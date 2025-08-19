@@ -72,13 +72,13 @@ struct WeekStatsGathering {
 }
 
 #[derive(Clone, Debug)]
-pub struct NumberWithOptionalDelta {
-    pub number: f64,
-    pub delta: Option<f64>,
+pub struct NumberWithOptionalDelta<T: Default + Copy + Display> {
+    pub number: T,
+    pub delta: Option<T>,
     pub up_is_good: bool,
 }
 
-impl From<f64> for NumberWithOptionalDelta {
+impl From<f64> for NumberWithOptionalDelta<f64> {
     fn from(number: f64) -> Self {
         let number = (number * 10.0).round() / 10.0;
         Self {
@@ -89,9 +89,18 @@ impl From<f64> for NumberWithOptionalDelta {
     }
 }
 
-impl NumberWithOptionalDelta {
+impl From<i64> for NumberWithOptionalDelta<i64> {
+    fn from(number: i64) -> Self {
+        Self {
+            number,
+            delta: None,
+            up_is_good: true,
+        }
+    }
+}
+
+impl NumberWithOptionalDelta<f64> {
     fn up_is_bad_from(number: f64) -> Self {
-        let number = (number * 10.0).round() / 10.0;
         Self {
             number,
             delta: None,
@@ -116,7 +125,30 @@ impl NumberWithOptionalDelta {
     }
 }
 
-impl Display for NumberWithOptionalDelta {
+impl NumberWithOptionalDelta<i64> {
+    fn up_is_bad_from(number: i64) -> Self {
+        Self {
+            number,
+            delta: None,
+            up_is_good: false,
+        }
+    }
+    fn compare_to(&mut self, other: &Self) {
+        self.delta = Some(self.number - other.number);
+    }
+    pub fn has_visible_diff(&self) -> Ordering {
+        if let Some(delta) = self.delta {
+            if self.up_is_good {
+                return delta.partial_cmp(&0).unwrap();
+            } else {
+                return (-delta).partial_cmp(&0).unwrap();
+            }
+        }
+        Ordering::Equal
+    }
+}
+
+impl<T: Display + Copy + Default> Display for NumberWithOptionalDelta<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.number.fmt(f)
     }
@@ -202,19 +234,20 @@ pub struct GroupStats {
     pub wins: u32,
     pub losses: u32,
     pub games_played: u32,
-    pub kills: NumberWithOptionalDelta,
-    pub deaths: NumberWithOptionalDelta,
-    pub assists: NumberWithOptionalDelta,
-    pub kda: NumberWithOptionalDelta,
-    pub winrate: NumberWithOptionalDelta,
-    pub cs_per_minute: NumberWithOptionalDelta,
-    pub gold_share: NumberWithOptionalDelta,
-    pub champion_damage_share: NumberWithOptionalDelta,
-    pub objective_damage_share: NumberWithOptionalDelta,
-    pub vision_share: NumberWithOptionalDelta,
-    pub vision_score_per_minute: NumberWithOptionalDelta,
-    pub solo_kills: NumberWithOptionalDelta,
-    pub solo_deaths: NumberWithOptionalDelta,
+    pub kills: NumberWithOptionalDelta<f64>,
+    pub deaths: NumberWithOptionalDelta<f64>,
+    pub assists: NumberWithOptionalDelta<f64>,
+    pub kda: NumberWithOptionalDelta<f64>,
+    pub winrate: NumberWithOptionalDelta<f64>,
+    pub net_wins: NumberWithOptionalDelta<i64>,
+    pub cs_per_minute: NumberWithOptionalDelta<f64>,
+    pub gold_share: NumberWithOptionalDelta<f64>,
+    pub champion_damage_share: NumberWithOptionalDelta<f64>,
+    pub objective_damage_share: NumberWithOptionalDelta<f64>,
+    pub vision_share: NumberWithOptionalDelta<f64>,
+    pub vision_score_per_minute: NumberWithOptionalDelta<f64>,
+    pub solo_kills: NumberWithOptionalDelta<f64>,
+    pub solo_deaths: NumberWithOptionalDelta<f64>,
     pub at_minute_stats: Vec<(u32, StatsAtMinute)>,
     pub previous_at_minute_stats: Option<Vec<(u32, StatsAtMinute)>>,
     pub heatmap_data: HeatMapData,
@@ -227,6 +260,7 @@ pub struct GroupStats {
 impl GroupStats {
     pub fn compare_to(&mut self, other: &Self) {
         self.winrate.compare_to(&other.winrate);
+        self.net_wins.compare_to(&other.net_wins);
         self.kills.compare_to(&other.kills);
         self.deaths.compare_to(&other.deaths);
         self.assists.compare_to(&other.assists);
@@ -751,9 +785,10 @@ fn convert_stats(title: &str, gathered: WeekStatsGathering) -> GroupStats {
         losses: gathered.losses,
         winrate: (100.0 * f64::from(gathered.wins) / f64::from(gathered.wins + gathered.losses))
             .into(),
+        net_wins: (gathered.wins as i64 - gathered.losses as i64).into(),
         games_played: gathered.wins + gathered.losses,
         kills: average(&gathered.kills).into(),
-        deaths: NumberWithOptionalDelta::up_is_bad_from(average(&gathered.deaths)),
+        deaths: NumberWithOptionalDelta::<f64>::up_is_bad_from(average(&gathered.deaths)),
         assists: average(&gathered.assists).into(),
         kda: average(&gathered.kda).into(),
         cs_per_minute: median(&gathered.cs_per_minute).into(),
@@ -763,7 +798,7 @@ fn convert_stats(title: &str, gathered: WeekStatsGathering) -> GroupStats {
         vision_share: median(&gathered.vision_share).into(),
         vision_score_per_minute: median(&gathered.vision_score_per_minute).into(),
         solo_kills: average(&gathered.solo_kills).into(),
-        solo_deaths: NumberWithOptionalDelta::up_is_bad_from(average(&gathered.solo_deaths)),
+        solo_deaths: NumberWithOptionalDelta::<f64>::up_is_bad_from(average(&gathered.solo_deaths)),
         at_minute_stats,
         previous_at_minute_stats: None,
         heatmap_data,

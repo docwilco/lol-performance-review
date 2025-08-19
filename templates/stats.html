@@ -14,6 +14,22 @@
 {% endif %}
 {% endmacro %}
 
+{% macro integer_with_diff(number) %}
+{{ number }}{% call integer_diff(number) %}
+{% endmacro %}
+
+{% macro integer_diff(number) %}
+{% if let Some(delta) = number.delta %}
+{% match number.has_visible_diff() %}
+{% when Ordering::Less %}
+<span class="negative">{{ "{:+}"|format(delta) }}</span>
+{% when Ordering::Greater %}
+<span class="positive">{{ "{:+}"|format(delta) }}</span>
+{% when Ordering::Equal %}
+{% endmatch %}
+{% endif %}
+{% endmacro %}
+
 {% macro float_with_diff(number) %}
 {{ "{:.1}"|format(number) }}{% call float_diff(number) %}
 {% endmacro %}
@@ -89,6 +105,10 @@ for {{ player.game_name|escape }}#{{ player.tag_line|escape }} on {{ player.regi
                             <tr>
                                 <td>Win rate</td>
                                 <td>{% call percent_float_with_diff(group.winrate) %}</td>
+                            </tr>
+                            <tr>
+                                <td>Net wins</td>
+                                <td>{% call integer_with_diff(group.net_wins) %}</td>
                             </tr>
                             <tr>
                                 <td>KDA</td>
