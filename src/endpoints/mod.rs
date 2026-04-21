@@ -1,7 +1,7 @@
 use crate::{internal_server_error, LeagueRegion};
 use actix_files::NamedFile;
 use actix_web::{routes, Responder, Result as ActixResult};
-use askama_actix::Template;
+use askama::Template;
 use strum::IntoEnumIterator;
 
 pub mod compare;

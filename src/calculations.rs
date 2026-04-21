@@ -1,11 +1,10 @@
 use crate::{
-    normalize_champion_name,
+    Player, Result, State, normalize_champion_name,
     riot_api::{
         get_puuid_and_canonical_name,
         json::{self, Match, Role},
         update_match_history,
     },
-    Player, Result, State,
 };
 use chrono::{TimeDelta, Utc};
 use itertools::{Itertools, Position};
@@ -126,7 +125,7 @@ impl NumberWithOptionalDelta<f64> {
 }
 
 impl NumberWithOptionalDelta<i64> {
-    fn up_is_bad_from(number: i64) -> Self {
+    fn _up_is_bad_from(number: i64) -> Self {
         Self {
             number,
             delta: None,
@@ -139,12 +138,13 @@ impl NumberWithOptionalDelta<i64> {
     pub fn has_visible_diff(&self) -> Ordering {
         if let Some(delta) = self.delta {
             if self.up_is_good {
-                return delta.partial_cmp(&0).unwrap();
+                delta.partial_cmp(&0).unwrap()
             } else {
-                return (-delta).partial_cmp(&0).unwrap();
+                (-delta).partial_cmp(&0).unwrap()
             }
+        } else {
+            Ordering::Equal
         }
-        Ordering::Equal
     }
 }
 
@@ -327,7 +327,9 @@ where
     values.sort_unstable();
     let mid = values.len() / 2;
     if values.len() % 2 == 0 {
-        (values[mid - 1].into_inner() + values[mid].into_inner()) / 2.0
+        values[mid - 1]
+            .into_inner()
+            .midpoint(values[mid].into_inner())
     } else {
         values[mid].into_inner()
     }
@@ -341,7 +343,7 @@ fn median_td<'a>(values: impl IntoIterator<Item = &'a TimeDelta>) -> TimeDelta {
     values.sort_unstable();
     let mid = values.len() / 2;
     if values.len() % 2 == 0 {
-        TimeDelta::seconds((values[mid - 1] + values[mid]) / 2)
+        TimeDelta::seconds(values[mid - 1].midpoint(values[mid]))
     } else {
         TimeDelta::seconds(values[mid])
     }
@@ -498,10 +500,10 @@ fn solo_deaths<'a>(
         .iter()
         .flat_map(|f| {
             f.events.iter().filter_map(|e| {
-                if let json::Event::ChampionKill(kill) = e {
-                    if kill.victim_id == player_id {
-                        return Some((kill.timestamp, kill.position));
-                    }
+                if let json::Event::ChampionKill(kill) = e
+                    && kill.victim_id == player_id
+                {
+                    return Some((kill.timestamp, kill.position));
                 }
                 None
             })
@@ -659,24 +661,20 @@ fn get_legendary_buys<'a>(
                     participant_id,
                     timestamp,
                 } = e
+                    && *participant_id == timeline_player_id
+                    && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
                 {
-                    if *participant_id == timeline_player_id
-                        && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
-                    {
-                        return Some((*timestamp, true));
-                    }
+                    return Some((*timestamp, true));
                 }
                 if let json::Event::ItemSold {
                     item_id,
                     participant_id,
                     timestamp,
                 } = e
+                    && *participant_id == timeline_player_id
+                    && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
                 {
-                    if *participant_id == timeline_player_id
-                        && ITEM_RANKS.get(item_id) == Some(&json::ItemType::Legendary)
-                    {
-                        return Some((*timestamp, false));
-                    }
+                    return Some((*timestamp, false));
                 }
                 if let json::Event::ItemUndo {
                     after_id: _,
@@ -685,12 +683,10 @@ fn get_legendary_buys<'a>(
                     participant_id,
                     timestamp,
                 } = e
+                    && *participant_id == timeline_player_id
+                    && ITEM_RANKS.get(before_id) == Some(&json::ItemType::Legendary)
                 {
-                    if *participant_id == timeline_player_id
-                        && ITEM_RANKS.get(before_id) == Some(&json::ItemType::Legendary)
-                    {
-                        return Some((*timestamp, false));
-                    }
+                    return Some((*timestamp, false));
                 }
                 None
             })
@@ -785,7 +781,7 @@ fn convert_stats(title: &str, gathered: WeekStatsGathering) -> GroupStats {
         losses: gathered.losses,
         winrate: (100.0 * f64::from(gathered.wins) / f64::from(gathered.wins + gathered.losses))
             .into(),
-        net_wins: (gathered.wins as i64 - gathered.losses as i64).into(),
+        net_wins: (i64::from(gathered.wins) - i64::from(gathered.losses)).into(),
         games_played: gathered.wins + gathered.losses,
         kills: average(&gathered.kills).into(),
         deaths: NumberWithOptionalDelta::<f64>::up_is_bad_from(average(&gathered.deaths)),

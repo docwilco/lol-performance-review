@@ -49,7 +49,7 @@ pub struct Objective {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Missions {
+pub struct _Missions {
     #[serde(rename = "playerScore0")]
     pub player0: Option<i32>,
     #[serde(rename = "playerScore1")]
@@ -78,14 +78,14 @@ pub struct Missions {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Perks {
-    pub stat_perks: PerkStats,
-    pub styles: Vec<PerkStyle>,
+pub struct _Perks {
+    pub stat_perks: _PerkStats,
+    pub styles: Vec<_PerkStyle>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PerkStats {
+pub struct _PerkStats {
     pub defense: i32,
     pub flex: i32,
     pub offense: i32,
@@ -93,7 +93,7 @@ pub struct PerkStats {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PerkSelection {
+pub struct _PerkSelection {
     pub perk: i32,
     pub var1: i32,
     pub var2: i32,
@@ -119,9 +119,9 @@ pub enum ItemType {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PerkStyle {
+pub struct _PerkStyle {
     pub description: String,
-    pub selections: Vec<PerkSelection>,
+    pub selections: Vec<_PerkSelection>,
     pub style: i32,
 }
 

@@ -5,8 +5,8 @@ use crate::{
     riot_api::json::Role,
     Player, PlayerRoleChamp, State, CHAMP_NAMES,
 };
-use actix_web::{routes, web, Either, HttpRequest, Responder, Result as ActixResult};
-use askama_actix::Template;
+use actix_web::{http::header::ContentType, routes, web, Either, HttpRequest, HttpResponse, Responder, Result as ActixResult};
+use askama::Template;
 use log::debug;
 use std::cmp::Ordering;
 
@@ -53,13 +53,17 @@ pub async fn page(
     }
     let champion = champion.map(|c| (*CHAMP_NAMES.get(&c).unwrap()).to_string());
     Ok(Either::Right(
-        DisplayData {
-            player,
-            role,
-            champion,
-            groups,
-        }
-        .customize()
-        .insert_header(("content-type", "text/html")),
+        HttpResponse::Ok()
+            .content_type(ContentType::html())
+            .message_body(
+                DisplayData {
+                    player,
+                    role,
+                    champion,
+                    groups,
+                }
+                .render()
+                .map_err(internal_server_error)?,
+            ),
     ))
 }

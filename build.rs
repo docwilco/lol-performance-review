@@ -78,7 +78,8 @@ fn main() -> Result<()> {
             })
             .flatten()
             .collect::<String>();
-        builder.entry(normalized, &format!("\"{name}\""));
+        let name = format!("\"{name}\"");
+        builder.entry(normalized, name);
     }
     let map = builder.build();
     let path = Path::new(&env::var("OUT_DIR").unwrap()).join("codegen-champ-names.rs");
@@ -116,7 +117,8 @@ fn main() -> Result<()> {
         .filter_map(Result::transpose)
         .collect::<Result<Vec<_>>>()?;
     for (item_id, rank) in ranks {
-        builder.entry(item_id, &format!("json::ItemType::{rank}"));
+        let rank = format!("json::ItemType::{rank}");
+        builder.entry(item_id, rank);
     }
     let map = builder.build();
     let path = Path::new(&env::var("OUT_DIR").unwrap()).join("codegen-item-ranks.rs");

@@ -1,12 +1,15 @@
 use crate::{
+    CHAMP_NAMES, LeagueRegion, Player, State,
     calculations::GroupStats,
-    fetcher::{check_or_start_fetching, RedirectOrContinue},
+    fetcher::{RedirectOrContinue, check_or_start_fetching},
     internal_server_error,
     riot_api::json::Role,
-    LeagueRegion, Player, State, CHAMP_NAMES,
 };
-use actix_web::{routes, web, Either, HttpRequest, Responder, Result as ActixResult};
-use askama_actix::Template;
+use actix_web::{
+    Either, HttpRequest, HttpResponse, Responder, Result as ActixResult, http::header::ContentType,
+    routes, web,
+};
+use askama::Template;
 use itertools::Itertools;
 use log::debug;
 use serde::Deserialize;
@@ -115,7 +118,9 @@ async fn do_player(
 #[routes]
 #[get("/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}")]
 #[get("/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}/{role}")]
-#[get("/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}/{role}/{champion}")]
+#[get(
+    "/compare/{region1}/{game_name1}/{tag_line1}/vs/{region2}/{game_name2}/{tag_line2}/{role}/{champion}"
+)]
 pub async fn page2(
     state: State,
     request: HttpRequest,
@@ -171,19 +176,23 @@ pub async fn page2(
     data.extend(p2d);
 
     Ok(Either::Right(
-        DisplayData {
-            players: [p1, p2],
-            role,
-            champion_name,
-            champion_id: champion,
-            data,
-            group_titles_and_ids,
-            per_group_per_role_per_champ: get_per_group_per_role_per_champ(
-                per_group_per_role_per_champ,
+        HttpResponse::Ok()
+            .content_type(ContentType::html())
+            .message_body(
+                DisplayData {
+                    players: [p1, p2],
+                    role,
+                    champion_name,
+                    champion_id: champion,
+                    data,
+                    group_titles_and_ids,
+                    per_group_per_role_per_champ: get_per_group_per_role_per_champ(
+                        per_group_per_role_per_champ,
+                    ),
+                }
+                .render()
+                .map_err(internal_server_error)?,
             ),
-        }
-        .customize()
-        .insert_header(("content-type", "text/html")),
     ))
 }
 
