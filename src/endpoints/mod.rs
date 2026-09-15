@@ -30,7 +30,5 @@ pub async fn index() -> ActixResult<impl Responder> {
 #[get("/riot.txt")]
 #[get("//riot.txt")]
 pub async fn riot_txt() -> ActixResult<NamedFile> {
-    NamedFile::open_async("riot.txt")
-        .await
-        .map_err(internal_server_error)
+    NamedFile::open("riot.txt").map_err(internal_server_error)
 }

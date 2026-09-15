@@ -1,4 +1,4 @@
-use cached::proc_macro::io_cached;
+use cached::macros::concurrent_cached;
 use derive_more::From;
 use itertools::Itertools;
 use serde::de::DeserializeOwned;
@@ -18,7 +18,7 @@ pub enum Error {
     #[from]
     Reqwest(reqwest::Error),
     #[from]
-    DiskCache(cached::DiskCacheError),
+    RedbCache(cached::RedbCacheError),
     #[from]
     Io(std::io::Error),
     #[from]
@@ -34,13 +34,13 @@ impl core::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-#[io_cached(
+#[concurrent_cached(
     disk = true,
     disk_dir = "cache",
     key = "String",
     convert = r#"{ url.to_string() }"#,
     map_error = r##"|e| e"##,
-    time = 43200, // 12 hours
+    ttl_secs = 43200, // 12 hours
 )]
 fn fetch_text(url: &str) -> Result<String> {
     Ok(reqwest::blocking::get(url)?.text()?)

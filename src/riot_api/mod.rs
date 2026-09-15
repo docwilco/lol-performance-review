@@ -1,12 +1,12 @@
 use crate::{fetcher::FetchStatus, ApiRegion, Player, Result, State};
-use cached::proc_macro::{cached, io_cached};
+use cached::macros::{cached, concurrent_cached};
 use chrono::{DateTime, Utc};
 use log::info;
 use serde_json::Value;
 
 pub mod json;
 
-#[io_cached(
+#[concurrent_cached(
     disk = true,
     disk_dir = "cache",
     key = "Player",
@@ -42,7 +42,7 @@ pub async fn get_puuid_and_canonical_name(state: &State, player: &mut Player) ->
     Ok(puuid.to_string())
 }
 
-#[io_cached(
+#[concurrent_cached(
     disk = true,
     disk_dir = "cache",
     key = "String",
@@ -61,7 +61,7 @@ pub async fn get_match(
         .await
 }
 
-#[io_cached(
+#[concurrent_cached(
     disk = true,
     disk_dir = "cache",
     key = "String",
@@ -86,8 +86,7 @@ pub async fn get_match_timeline(
 }
 
 #[cached(
-    result = true,
-    time = 300, // 5 minutes
+    ttl_secs = 300, // 5 minutes
     key = "String",
     convert = r#"{ format!("{region}#{puuid}#{end:?}") }"#,
 )]
